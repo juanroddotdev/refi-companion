@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Refi Companion</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Refi Companion</p>
+          <h1>Call Script</h1>
+        </div>
+        <div class="timer-card" aria-label="Call timer">
+          <span id="timer">00:00</span>
+          <button id="timer-toggle" class="ghost-button" type="button">Start</button>
+        </div>
+      </header>
+
+      <section class="controls" aria-label="Call controls">
+        <button id="new-call" class="secondary-button" type="button">New Call</button>
+        <button id="copy-notes" class="primary-button" type="button">Copy Notes</button>
+      </section>
+
+      <nav id="step-list" class="step-list" aria-label="Script steps"></nav>
+
+      <section id="step-detail" class="step-detail" aria-live="polite"></section>
+
+      <section class="notes-panel" aria-labelledby="notes-title">
+        <div class="section-heading">
+          <p class="eyebrow">Scratchpad</p>
+          <h2 id="notes-title">Borrower Notes</h2>
+        </div>
+        <label>
+          Borrower goal
+          <textarea id="goal-note" rows="3" placeholder="Lower payment, cash-out, term reduction..."></textarea>
+        </label>
+        <label>
+          Loan details
+          <textarea id="loan-note" rows="3" placeholder="Current rate, balance, payment, term..."></textarea>
+        </label>
+        <label>
+          Objections / next step
+          <textarea id="next-note" rows="3" placeholder="Spouse review, fee concern, follow-up date..."></textarea>
+        </label>
+        <p id="copy-status" class="copy-status" role="status"></p>
+      </section>
+    </main>
+
+    <script src="panel.js" type="module"></script>
+  </body>
+</html>

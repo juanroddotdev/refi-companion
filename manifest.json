@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Refi Companion",
+  "description": "A Chrome side panel script companion for refinance calls.",
+  "version": "0.1.0",
+  "permissions": ["sidePanel", "storage"],
+  "action": {
+    "default_title": "Open Refi Companion"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  }
+}

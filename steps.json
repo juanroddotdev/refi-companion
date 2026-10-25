@@ -1,0 +1,158 @@
+[
+  {
+    "id": "intro",
+    "number": 1,
+    "title": "Intro",
+    "subtitle": "Open the door. Build trust.",
+    "goal": "Confirm who you are speaking with, set the purpose of the call, and earn permission to ask questions.",
+    "script": "Before I throw numbers at you, I want to make sure I understand what you are trying to accomplish and what would actually make this worth it for you.",
+    "checklist": [
+      "Confirm borrower name",
+      "Confirm property address",
+      "Provide required licensing or company disclosure",
+      "State the purpose of the call",
+      "Ask permission to review their refinance goals"
+    ],
+    "prompts": [
+      "What made you open to looking at a refinance right now?",
+      "If this call goes well, what would you want to walk away knowing?"
+    ]
+  },
+  {
+    "id": "discovery",
+    "number": 2,
+    "title": "Discovery",
+    "subtitle": "Ask. Listen. Understand.",
+    "goal": "Collect the facts and the motivation before discussing loan structure.",
+    "script": "The numbers only matter if they solve the right problem, so I am going to ask a few quick questions first.",
+    "checklist": [
+      "Identify primary goal",
+      "Capture current balance",
+      "Capture current rate",
+      "Capture current payment",
+      "Ask what happens if they do nothing"
+    ],
+    "prompts": [
+      "Is your main priority lowering payment, shortening term, or accessing cash?",
+      "What is your current monthly mortgage payment?",
+      "Do you know your current rate and approximate balance?",
+      "What would need to improve for this to feel worth moving forward?"
+    ]
+  },
+  {
+    "id": "recap",
+    "number": 3,
+    "title": "Recap",
+    "subtitle": "Clarify. Confirm. Align.",
+    "goal": "Repeat the borrower goal back before presenting any solution.",
+    "script": "Just to make sure we are on the same page, your main priority is [goal], and ideally we want to get [payment, cash, term, or certainty outcome]. Did I get that right?",
+    "checklist": [
+      "Restate the borrower's goal",
+      "Confirm the target outcome",
+      "Confirm any constraints",
+      "Get verbal alignment before quoting numbers"
+    ],
+    "prompts": [
+      "What is the most important part of this for you?",
+      "Is there anything I missed before I show you the option?"
+    ]
+  },
+  {
+    "id": "set-stage",
+    "number": 4,
+    "title": "Set the Stage",
+    "subtitle": "Prepare their mind.",
+    "goal": "Explain how to evaluate the offer before showing the approval details.",
+    "script": "When we look at this, I do not want you judging it only by rate. I want us to look at payment impact, total cost, break-even, and whether it solves the reason you took this call.",
+    "checklist": [
+      "Remind them of their stated goal",
+      "Explain the evaluation criteria",
+      "Mention market movement without making predictions",
+      "Prepare them for payment, cost, and break-even discussion"
+    ],
+    "prompts": [
+      "The question is not just 'is the rate lower?' The question is whether the structure improves your situation enough to justify moving forward."
+    ]
+  },
+  {
+    "id": "close",
+    "number": 5,
+    "title": "Mic Drop Close",
+    "subtitle": "Own the value. Make it easy.",
+    "goal": "Present the approval in a simple, confident way and ask for the decision.",
+    "script": "Based on what you told me, this option does what we set out to do: it targets [goal], gives you [benefit], and keeps the decision grounded in the numbers we just reviewed. Does this sound like the solution we discussed?",
+    "checklist": [
+      "Present the proposed payment",
+      "Present rate and term",
+      "Explain closing costs or credits",
+      "Explain break-even if applicable",
+      "Ask a direct closing question, then pause"
+    ],
+    "prompts": [
+      "Monthly savings:",
+      "New rate and term:",
+      "Break-even period:",
+      "Cash to close or lender credit:"
+    ]
+  },
+  {
+    "id": "rebuttal",
+    "number": 6,
+    "title": "Rebuttal Hub",
+    "subtitle": "Play defense. Remove doubt.",
+    "goal": "Address hesitation without sounding defensive or dismissive.",
+    "script": "Most objections are requests for more certainty. Slow down, validate the concern, and bring the conversation back to the borrower's original goal.",
+    "rebuttals": [
+      {
+        "id": "rates-drop",
+        "label": "Rates might drop",
+        "response": "That is a fair thought. Since no one can guarantee future rates, I would look at what this solves today and whether the savings or structure gives you enough benefit now.",
+        "followUp": "If rates improved later and you still had flexibility, would solving the current payment issue now still be worth comparing?"
+      },
+      {
+        "id": "costs-high",
+        "label": "Closing costs are high",
+        "response": "I agree costs matter. The way I would judge it is by the break-even and whether the monthly or long-term benefit outweighs the cost over the time you expect to keep the loan.",
+        "followUp": "Would it help if I showed a lender-credit version with less out-of-pocket cost?"
+      },
+      {
+        "id": "spouse",
+        "label": "Need to ask spouse",
+        "response": "Absolutely. This is a household decision. Let me help you make that conversation simple by summarizing the goal, the payment impact, the costs, and the next step.",
+        "followUp": "What is the biggest question they will probably ask first?"
+      },
+      {
+        "id": "reset-term",
+        "label": "Do not reset term",
+        "response": "That makes sense. Resetting the term is not the only way to structure this. We can compare a shorter term or payment-focused option and look at total interest.",
+        "followUp": "Would you rather optimize for lowest payment or lowest total interest?"
+      }
+    ]
+  },
+  {
+    "id": "pivot",
+    "number": 7,
+    "title": "Pivot Options",
+    "subtitle": "Find another path to yes.",
+    "goal": "Offer an alternate structure when the first option does not fit.",
+    "script": "If the first structure is close but not quite right, pivot the loan design instead of ending the conversation.",
+    "options": [
+      {
+        "title": "Lender Credit",
+        "description": "Trade a slightly higher rate for lower upfront cost when cash to close is the blocker."
+      },
+      {
+        "title": "Shorter Term",
+        "description": "Compare a 20-year or 15-year term when the borrower is worried about resetting the clock."
+      },
+      {
+        "title": "Payment Focus",
+        "description": "Optimize for monthly relief when cash flow is the primary goal."
+      },
+      {
+        "title": "Follow-Up Plan",
+        "description": "Set a specific date and reason to reconnect if the borrower is not ready today."
+      }
+    ]
+  }
+]
