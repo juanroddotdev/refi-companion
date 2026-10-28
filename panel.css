@@ -94,19 +94,9 @@ h3 {
   font-size: 1.2rem;
 }
 
-.timer-card {
-  display: grid;
-  min-width: 92px;
-  gap: 6px;
-  justify-items: center;
-  border-radius: 16px;
-  background: var(--surface-strong);
-  padding: 10px;
-}
-
-#timer {
-  font-variant-numeric: tabular-nums;
-  font-weight: 800;
+.step-title {
+  margin-bottom: 6px;
+  font-size: 1.2rem;
 }
 
 .controls {
@@ -118,7 +108,6 @@ h3 {
 
 .primary-button,
 .secondary-button,
-.ghost-button,
 .step-button,
 .chip,
 .next-button {
@@ -139,11 +128,10 @@ h3 {
   color: var(--brand);
 }
 
-.ghost-button {
-  background: #eef2f6;
-  color: var(--brand);
-  font-size: 0.78rem;
-  padding: 6px 10px;
+.secondary-button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: rgba(184, 111, 52, 0.12);
+  color: var(--brand-strong);
 }
 
 .primary-button,
@@ -254,6 +242,12 @@ h3 {
   padding: 8px 10px;
 }
 
+.chip[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+}
+
 .option-card {
   flex: 1 1 140px;
   border: 1px solid var(--line);
@@ -265,6 +259,12 @@ h3 {
 .next-button {
   width: 100%;
   margin-top: 16px;
+}
+
+.next-button:disabled {
+  background: var(--line);
+  color: var(--muted);
+  cursor: default;
 }
 
 .section-heading {
@@ -292,7 +292,8 @@ textarea {
 }
 
 textarea:focus,
-button:focus-visible {
+button:focus-visible,
+#step-title:focus {
   outline: 3px solid rgba(184, 111, 52, 0.35);
   outline-offset: 2px;
 }
@@ -302,4 +303,20 @@ button:focus-visible {
   margin: 12px 0 0;
   color: var(--success);
   font-weight: 800;
+}
+
+.copy-status-error {
+  color: #8f3d32;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
