@@ -11,10 +11,28 @@
       <header class="top-cockpit">
         <div class="top-row">
           <div class="brand-lockup">
-            <span class="brand-dot" aria-hidden="true"></span>
-            <div>
-              <p class="eyebrow">Refi Companion</p>
-              <h1>Call Script</h1>
+            <div class="mode-switch" role="group" aria-label="View mode">
+              <button
+                id="mode-live"
+                class="mode-btn"
+                type="button"
+                data-mode="live"
+                aria-pressed="true"
+                title="Live Call Mode: Sparse glanceable cues (Alt+M)"
+              >
+                <span class="live-pulse" aria-hidden="true"></span>
+                Live
+              </button>
+              <button
+                id="mode-practice"
+                class="mode-btn"
+                type="button"
+                data-mode="practice"
+                aria-pressed="false"
+                title="Practice Mode: Full verbatim scripts & checklists (Alt+M)"
+              >
+                Practice
+              </button>
             </div>
           </div>
           <div class="controls" role="group" aria-label="Call controls">
@@ -34,7 +52,7 @@
               type="button"
               title="Reset call notes & checklist"
             >
-              New Call
+              New
             </button>
             <button
               id="copy-notes"
@@ -66,7 +84,7 @@
       <section id="notes-dock" class="notes-panel" aria-labelledby="notes-title">
         <div class="notes-header">
           <div class="notes-title-group">
-            <h2 id="notes-title">Borrower Scratchpad</h2>
+            <h2 id="notes-title">Scratchpad</h2>
             <span id="copy-status" class="copy-status" role="status"></span>
           </div>
           <button
@@ -98,7 +116,7 @@
               data-note-tab="loan"
               aria-selected="false"
             >
-              Loan Snapshot
+              Loan Notes
             </button>
             <button
               type="button"
@@ -107,7 +125,7 @@
               data-note-tab="next"
               aria-selected="false"
             >
-              Objections / Next
+              Next Step
             </button>
           </div>
 
@@ -117,7 +135,7 @@
               <textarea
                 id="goal-note"
                 rows="2"
-                placeholder="Motivation, cash-out purpose, why now, what happens if they do nothing..."
+                placeholder="Motivation, cash-out purpose, why now, cost of waiting..."
               ></textarea>
             </label>
             <label class="note-pane" data-note-pane="loan" hidden>

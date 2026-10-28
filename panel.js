@@ -16,6 +16,7 @@ const SHORT_STEP_LABELS = {
 };
 
 const defaultState = {
+  viewMode: "live",
   activeStepId: "",
   checkedItems: {},
   selectedRebuttalId: "",
@@ -45,6 +46,8 @@ const SAVE_DELAY_MS = 250;
 const CLEAR_CONFIRM_MS = 5000;
 
 const elements = {
+  modeLive: document.querySelector("#mode-live"),
+  modePractice: document.querySelector("#mode-practice"),
   newCall: document.querySelector("#new-call"),
   copyNotes: document.querySelector("#copy-notes"),
   copyStatus: document.querySelector("#copy-status"),
@@ -68,6 +71,7 @@ let clearConfirmTimer = null;
 let copyStatusTimer = null;
 let clearArmed = false;
 let quickObjectionOpen = false;
+let expandedPeeks = new Set();
 let persistQueue = Promise.resolve();
 
 function escapeHtml(value) {
@@ -118,10 +122,20 @@ function computeDealMetrics(deal = state.deal) {
   let breakEvenLabel = "—";
   let breakEvenMonths = NaN;
 
-  if (Number.isFinite(netCost) && netCost <= 0 && Number.isFinite(monthlySavings) && monthlySavings > 0) {
+  if (
+    Number.isFinite(netCost) &&
+    netCost <= 0 &&
+    Number.isFinite(monthlySavings) &&
+    monthlySavings > 0
+  ) {
     breakEvenLabel = "Immediate (0 mos)";
     breakEvenMonths = 0;
-  } else if (Number.isFinite(netCost) && netCost > 0 && Number.isFinite(monthlySavings) && monthlySavings > 0) {
+  } else if (
+    Number.isFinite(netCost) &&
+    netCost > 0 &&
+    Number.isFinite(monthlySavings) &&
+    monthlySavings > 0
+  ) {
     breakEvenMonths = Math.ceil(netCost / monthlySavings);
     breakEvenLabel = `${breakEvenMonths} mo${breakEvenMonths === 1 ? "" : "s"}`;
   }
@@ -180,7 +194,8 @@ function normalizeDeal(deal) {
     currentRate: typeof deal.currentRate === "string" ? deal.currentRate : "",
     currentPayment: typeof deal.currentPayment === "string" ? deal.currentPayment : "",
     proposedRate: typeof deal.proposedRate === "string" ? deal.proposedRate : "",
-    proposedTerm: typeof deal.proposedTerm === "string" && deal.proposedTerm ? deal.proposedTerm : "30 yr",
+    proposedTerm:
+      typeof deal.proposedTerm === "string" && deal.proposedTerm ? deal.proposedTerm : "30 yr",
     proposedPayment: typeof deal.proposedPayment === "string" ? deal.proposedPayment : "",
     netCost: typeof deal.netCost === "string" ? deal.netCost : "",
     cashOut: typeof deal.cashOut === "string" ? deal.cashOut : ""
@@ -210,6 +225,7 @@ function stripLegacyState(storedState) {
     delete next[key];
   }
 
+  next.viewMode = next.viewMode === "practice" ? "practice" : "live";
   next.notes = normalizeNotes(next.notes);
   next.deal = normalizeDeal(next.deal);
   next.checkedItems = normalizeCheckedItems(next.checkedItems);
@@ -262,6 +278,10 @@ async function removeLegacyTimerKeys() {
   }
 
   await chrome.storage.local.remove(LEGACY_TIMER_KEYS);
+}
+
+function isLiveMode() {
+  return state.viewMode !== "practice";
 }
 
 function getActiveStep() {
@@ -329,8 +349,8 @@ function findSelectedRebuttal() {
   return all.find((rebuttal) => rebuttal.id === state.selectedRebuttalId) || null;
 }
 
-function interpolateTalkTrack(rawScript) {
-  if (!rawScript) {
+function interpolateTalkTrack(rawText, { short = false } = {}) {
+  if (!rawText) {
     return "";
   }
 
@@ -339,26 +359,39 @@ function interpolateTalkTrack(rawScript) {
   const goalText =
     deal.primaryGoal ||
     notes.goal.split(/[.,\n]/)[0]?.trim() ||
-    "your refinance goal";
+    (short ? "Goal" : "your refinance goal");
 
   let outcomeParts = [];
   if (Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0) {
-    outcomeParts.push(`saving ${formatCurrency(metrics.monthlySavings)}/mo`);
+    outcomeParts.push(
+      short
+        ? `Saves ${formatCurrency(metrics.monthlySavings)}/mo`
+        : `saving ${formatCurrency(metrics.monthlySavings)}/mo`
+    );
   }
   if (Number.isFinite(metrics.cashOut) && metrics.cashOut > 0) {
-    outcomeParts.push(`accessing ${formatCurrency(metrics.cashOut)} cash out`);
+    outcomeParts.push(
+      short
+        ? `${formatCurrency(metrics.cashOut)} Cash Out`
+        : `accessing ${formatCurrency(metrics.cashOut)} cash out`
+    );
   }
   if (deal.proposedRate) {
-    outcomeParts.push(`locking in ${deal.proposedRate}% (${deal.proposedTerm})`);
+    outcomeParts.push(
+      short
+        ? `${deal.proposedRate}% (${deal.proposedTerm})`
+        : `locking in ${deal.proposedRate}% (${deal.proposedTerm})`
+    );
   }
-  const benefitText =
-    outcomeParts.join(" and ") ||
-    "a stronger monthly & long-term loan structure";
 
-  let html = escapeHtml(rawScript);
+  const benefitText =
+    outcomeParts.join(" + ") ||
+    (short ? "Target Structure" : "a stronger monthly & long-term loan structure");
+
+  let html = escapeHtml(rawText);
   html = html.replace(
     /\[goal\]/gi,
-    `<span class="dynamic-token">${escapeHtml(goalText.toLowerCase())}</span>`
+    `<span class="dynamic-token">${escapeHtml(short ? goalText : goalText.toLowerCase())}</span>`
   );
   html = html.replace(
     /\[payment, cash, term, or certainty outcome\]/gi,
@@ -369,6 +402,12 @@ function interpolateTalkTrack(rawScript) {
     `<span class="dynamic-token">${escapeHtml(benefitText)}</span>`
   );
   return html;
+}
+
+function renderModeSwitch() {
+  const live = isLiveMode();
+  elements.modeLive.setAttribute("aria-pressed", live ? "true" : "false");
+  elements.modePractice.setAttribute("aria-pressed", live ? "false" : "true");
 }
 
 function renderLiveMetricsStrip() {
@@ -438,6 +477,78 @@ function renderStepList() {
     .join("");
 }
 
+function renderScriptOrCueCard({
+  peekKey,
+  label,
+  cueText,
+  askCueText,
+  fullScriptText,
+  followUpText,
+  idAttr = ""
+}) {
+  const live = isLiveMode();
+  const isPeekOpen = expandedPeeks.has(peekKey);
+
+  if (!live || !cueText) {
+    return `
+      <article class="script-card">
+        <div class="script-card-top">
+          <span class="script-card-label">${escapeHtml(label)}</span>
+        </div>
+        <p class="full-script-text" ${idAttr ? `id="${escapeHtml(idAttr)}"` : ""}>${interpolateTalkTrack(
+          fullScriptText
+        )}</p>
+        ${
+          followUpText
+            ? `<strong class="followup-heading">Follow-up question:</strong><p class="full-script-text">${escapeHtml(
+                followUpText
+              )}</p>`
+            : ""
+        }
+      </article>
+    `;
+  }
+
+  const askLine = askCueText || followUpText;
+
+  return `
+    <article class="script-card">
+      <div class="script-card-top">
+        <span class="script-card-label">${escapeHtml(label)}</span>
+        ${
+          fullScriptText
+            ? `<button
+                type="button"
+                class="peek-btn"
+                data-peek-key="${escapeHtml(peekKey)}"
+                aria-expanded="${isPeekOpen ? "true" : "false"}"
+                title="Peek at full word-for-word script"
+              >
+                ${isPeekOpen ? "Hide script" : "Peek script"}
+              </button>`
+            : ""
+        }
+      </div>
+      <p class="cue-headline" ${idAttr ? `id="${escapeHtml(idAttr)}"` : ""}>${interpolateTalkTrack(
+        cueText,
+        { short: true }
+      )}</p>
+      ${
+        askLine
+          ? `<p class="cue-ask"><span class="cue-ask-badge">Ask</span> <span>${escapeHtml(
+              askLine
+            )}</span></p>`
+          : ""
+      }
+      ${
+        isPeekOpen && fullScriptText
+          ? `<div class="peek-script-box">${interpolateTalkTrack(fullScriptText)}</div>`
+          : ""
+      }
+    </article>
+  `;
+}
+
 function renderQuickObjectionDrawer() {
   elements.quickObjectionToggle.setAttribute(
     "aria-expanded",
@@ -463,7 +574,7 @@ function renderQuickObjectionDrawer() {
       <h2>Instant Objection Handler</h2>
       <button type="button" class="close-drawer-btn" data-close-drawer>Close (Esc)</button>
     </div>
-    <div class="chip-row" role="group" aria-label="Quick objections">
+    <div class="chip-row" role="group" aria-label="Quick objections" style="margin-bottom: 8px;">
       ${allRebuttals
         .map(
           (rebuttal) => `
@@ -479,12 +590,14 @@ function renderQuickObjectionDrawer() {
         )
         .join("")}
     </div>
-    <article class="script-card" style="margin-top: 8px;">
-      <span class="script-card-label">Say This (${escapeHtml(selected.label)})</span>
-      <p>${escapeHtml(selected.response)}</p>
-      <strong>Follow-up question:</strong>
-      <p>${escapeHtml(selected.followUp)}</p>
-    </article>
+    ${renderScriptOrCueCard({
+      peekKey: `drawer-${selected.id}`,
+      label: `Objection: ${selected.label}`,
+      cueText: selected.cue,
+      askCueText: selected.askCue,
+      fullScriptText: selected.response,
+      followUpText: selected.followUp
+    })}
   `;
 }
 
@@ -636,7 +749,41 @@ function renderChecklist(step) {
     return "";
   }
 
+  // In Live Mode, Discovery & Close inputs already auto-track their checklists
+  if (isLiveMode() && (step.id === "discovery" || step.id === "close")) {
+    return "";
+  }
+
   const checkedItems = getCheckedItems(step.id);
+
+  if (isLiveMode()) {
+    return `
+      <div>
+        <div class="cue-pill-row" role="group" aria-label="${escapeHtml(step.title)} quick checks">
+          ${step.checklist
+            .map((item, index) => {
+              const shortLabel = step.checkCues?.[index] || item;
+              const isChecked = checkedItems.includes(item);
+              return `
+                <button
+                  type="button"
+                  class="check-pill"
+                  data-check-pill-index="${index}"
+                  aria-pressed="${isChecked ? "true" : "false"}"
+                  title="${escapeHtml(item)}"
+                >
+                  <span class="check-pill-icon" aria-hidden="true">${
+                    isChecked ? "✓" : "○"
+                  }</span>
+                  <span>${escapeHtml(shortLabel)}</span>
+                </button>
+              `;
+            })
+            .join("")}
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div>
@@ -665,6 +812,11 @@ function renderChecklist(step) {
 
 function renderPrompts(step) {
   if (!step.prompts?.length || step.id === "close") {
+    return "";
+  }
+
+  // In Live Mode, the primary question is already featured inside the Live Cue card
+  if (isLiveMode()) {
     return "";
   }
 
@@ -704,12 +856,14 @@ function renderRebuttals(step) {
         )
         .join("")}
     </div>
-    <article class="script-card">
-      <span class="script-card-label">${escapeHtml(selected.label)}</span>
-      <p>${escapeHtml(selected.response)}</p>
-      <strong>Follow-up question:</strong>
-      <p>${escapeHtml(selected.followUp)}</p>
-    </article>
+    ${renderScriptOrCueCard({
+      peekKey: `rebuttal-${selected.id}`,
+      label: selected.label,
+      cueText: selected.cue,
+      askCueText: selected.askCue,
+      fullScriptText: selected.response,
+      followUpText: selected.followUp
+    })}
   `;
 }
 
@@ -721,6 +875,7 @@ function renderOptions(step) {
   const selectedOption =
     step.options.find((opt) => (opt.id || opt.title) === state.selectedPivotId) ||
     step.options[0];
+  const live = isLiveMode();
 
   return `
     <div class="option-grid" role="group" aria-label="Loan structure pivots">
@@ -736,7 +891,7 @@ function renderOptions(step) {
               aria-pressed="${isSelected ? "true" : "false"}"
             >
               <h3>${escapeHtml(option.title)}</h3>
-              <p>${escapeHtml(option.description)}</p>
+              ${!live ? `<p>${escapeHtml(option.description)}</p>` : ""}
             </button>
           `;
         })
@@ -744,14 +899,12 @@ function renderOptions(step) {
     </div>
     ${
       selectedOption?.talkTrack
-        ? `
-          <article class="script-card">
-            <span class="script-card-label">Pivot Talk Track — ${escapeHtml(
-              selectedOption.title
-            )}</span>
-            <p>${escapeHtml(selectedOption.talkTrack)}</p>
-          </article>
-        `
+        ? renderScriptOrCueCard({
+            peekKey: `pivot-${selectedOption.id || selectedOption.title}`,
+            label: `Pivot — ${selectedOption.title}`,
+            cueText: selectedOption.cue,
+            fullScriptText: selectedOption.talkTrack
+          })
         : ""
     }
   `;
@@ -766,6 +919,7 @@ function renderStepDetail() {
 
   const onFirstStep = isFirstStep(step);
   const onLastStep = isLastStep(step);
+  const live = isLiveMode();
 
   elements.stepDetail.innerHTML = `
     <div class="step-header-bar">
@@ -773,14 +927,19 @@ function renderStepDetail() {
         <span class="step-kicker">Step ${escapeHtml(step.number)}</span>
         <h2 id="step-title" class="step-title" tabindex="-1">${escapeHtml(step.title)}</h2>
       </div>
-      <p class="step-subtitle">${escapeHtml(step.subtitle)}</p>
+      ${!live ? `<p class="step-subtitle">${escapeHtml(step.subtitle)}</p>` : ""}
     </div>
-    <p class="step-goal">${escapeHtml(step.goal)}</p>
+    ${!live ? `<p class="step-goal">${escapeHtml(step.goal)}</p>` : ""}
     ${
       step.script
-        ? `<article class="script-card"><span class="script-card-label">Talk Track</span><p id="active-talk-track">${interpolateTalkTrack(
-            step.script
-          )}</p></article>`
+        ? renderScriptOrCueCard({
+            peekKey: `step-${step.id}`,
+            label: live ? "Live Cue" : "Talk Track",
+            cueText: step.cue,
+            askCueText: step.askCue,
+            fullScriptText: step.script,
+            idAttr: "active-talk-track"
+          })
         : ""
     }
     ${step.id === "discovery" ? renderDiscoveryWidget() : ""}
@@ -858,6 +1017,7 @@ function focusStepTitle() {
 }
 
 function renderApp({ announce = false, focusStep = false } = {}) {
+  renderModeSwitch();
   renderLiveMetricsStrip();
   renderStepList();
   renderQuickObjectionDrawer();
@@ -871,6 +1031,30 @@ function renderApp({ announce = false, focusStep = false } = {}) {
   if (focusStep) {
     focusStepTitle();
   }
+}
+
+async function setViewMode(mode) {
+  const nextMode = mode === "practice" ? "practice" : "live";
+  if (nextMode === state.viewMode) {
+    return;
+  }
+
+  expandedPeeks.clear();
+  await flushState({ viewMode: nextMode });
+  renderApp();
+}
+
+function togglePeek(peekKey) {
+  if (!peekKey) {
+    return;
+  }
+  if (expandedPeeks.has(peekKey)) {
+    expandedPeeks.delete(peekKey);
+  } else {
+    expandedPeeks.add(peekKey);
+  }
+  renderQuickObjectionDrawer();
+  renderStepDetail();
 }
 
 async function setActiveStep(stepId) {
@@ -902,14 +1086,17 @@ async function goToAdjacentStep(delta) {
   await setActiveStep(steps[nextIndex].id);
 }
 
-async function updateChecklist(step, checkbox) {
-  const itemText = step.checklist?.[Number(checkbox.dataset.checkIndex)];
+async function toggleChecklistIndex(step, index, forceChecked) {
+  const itemText = step.checklist?.[Number(index)];
   if (typeof itemText !== "string") {
     return;
   }
 
   const checkedItems = new Set(getCheckedItems(step.id));
-  if (checkbox.checked) {
+  const shouldCheck =
+    typeof forceChecked === "boolean" ? forceChecked : !checkedItems.has(itemText);
+
+  if (shouldCheck) {
     checkedItems.add(itemText);
   } else {
     checkedItems.delete(itemText);
@@ -923,6 +1110,9 @@ async function updateChecklist(step, checkbox) {
   });
 
   renderStepList();
+  if (isLiveMode()) {
+    renderStepDetail();
+  }
 }
 
 function rememberNotes() {
@@ -936,14 +1126,24 @@ function rememberNotes() {
   };
 }
 
+function refreshActiveTalkTrackInPlace() {
+  const step = getActiveStep();
+  const talkTrackEl = document.getElementById("active-talk-track");
+  if (!step || !talkTrackEl) {
+    return;
+  }
+
+  if (isLiveMode() && step.cue) {
+    talkTrackEl.innerHTML = interpolateTalkTrack(step.cue, { short: true });
+  } else if (step.script) {
+    talkTrackEl.innerHTML = interpolateTalkTrack(step.script);
+  }
+}
+
 function updateNotes() {
   rememberNotes();
   renderLiveMetricsStrip();
-  const step = getActiveStep();
-  const talkTrackEl = document.getElementById("active-talk-track");
-  if (step?.script && talkTrackEl) {
-    talkTrackEl.innerHTML = interpolateTalkTrack(step.script);
-  }
+  refreshActiveTalkTrackInPlace();
   renderNotes();
   schedulePersist();
 }
@@ -1007,11 +1207,18 @@ function handleDealFieldInput(inputEl) {
   renderLiveMetricsStrip();
   renderStepList();
   updateCloseSummaryInPlace();
+  refreshActiveTalkTrackInPlace();
 
-  const step = getActiveStep();
-  const talkTrackEl = document.getElementById("active-talk-track");
-  if (step?.script && talkTrackEl) {
-    talkTrackEl.innerHTML = interpolateTalkTrack(step.script);
+  for (const pill of elements.stepDetail.querySelectorAll("[data-check-pill-index]")) {
+    const step = getActiveStep();
+    const idx = Number(pill.dataset.checkPillIndex);
+    const item = step?.checklist?.[idx];
+    const isChecked = item ? getCheckedItems(step.id).includes(item) : false;
+    pill.setAttribute("aria-pressed", isChecked ? "true" : "false");
+    const icon = pill.querySelector(".check-pill-icon");
+    if (icon) {
+      icon.textContent = isChecked ? "✓" : "○";
+    }
   }
 
   schedulePersist();
@@ -1142,7 +1349,7 @@ async function copyNotes() {
 
 function armClearCall() {
   clearArmed = true;
-  elements.newCall.textContent = "Confirm Clear?";
+  elements.newCall.textContent = "Clear?";
   elements.newCall.setAttribute("aria-pressed", "true");
   clearTimeout(clearConfirmTimer);
   clearConfirmTimer = setTimeout(disarmClearCall, CLEAR_CONFIRM_MS);
@@ -1152,7 +1359,7 @@ function disarmClearCall() {
   clearArmed = false;
   clearTimeout(clearConfirmTimer);
   clearConfirmTimer = null;
-  elements.newCall.textContent = "New Call";
+  elements.newCall.textContent = "New";
   elements.newCall.removeAttribute("aria-pressed");
 }
 
@@ -1164,8 +1371,10 @@ async function resetCall() {
 
   disarmClearCall();
   quickObjectionOpen = false;
+  expandedPeeks.clear();
   await flushState({
     ...structuredClone(defaultState),
+    viewMode: state.viewMode,
     activeStepId: steps[0]?.id || ""
   });
   renderApp({ announce: true, focusStep: true });
@@ -1188,6 +1397,8 @@ function toggleQuickObjectionDrawer() {
 }
 
 function bindEvents() {
+  elements.modeLive.addEventListener("click", () => setViewMode("live"));
+  elements.modePractice.addEventListener("click", () => setViewMode("practice"));
   elements.newCall.addEventListener("click", resetCall);
   elements.copyNotes.addEventListener("click", copyNotes);
   elements.quickObjectionToggle.addEventListener("click", () => {
@@ -1199,6 +1410,12 @@ function bindEvents() {
     if (event.target.closest("[data-close-drawer]")) {
       quickObjectionOpen = false;
       renderQuickObjectionDrawer();
+      return;
+    }
+
+    const peekBtn = event.target.closest("[data-peek-key]");
+    if (peekBtn) {
+      togglePeek(peekBtn.dataset.peekKey);
       return;
     }
 
@@ -1242,6 +1459,20 @@ function bindEvents() {
   });
 
   elements.stepDetail.addEventListener("click", (event) => {
+    const peekBtn = event.target.closest("[data-peek-key]");
+    if (peekBtn) {
+      disarmClearCall();
+      togglePeek(peekBtn.dataset.peekKey);
+      return;
+    }
+
+    const checkPill = event.target.closest("[data-check-pill-index]");
+    if (checkPill) {
+      disarmClearCall();
+      toggleChecklistIndex(getActiveStep(), checkPill.dataset.checkPillIndex);
+      return;
+    }
+
     const goalChip = event.target.closest("[data-goal-chip]");
     if (goalChip) {
       disarmClearCall();
@@ -1290,7 +1521,11 @@ function bindEvents() {
     }
 
     if (event.target.matches("[data-check-index]")) {
-      updateChecklist(getActiveStep(), event.target);
+      toggleChecklistIndex(
+        getActiveStep(),
+        event.target.dataset.checkIndex,
+        event.target.checked
+      );
     }
   });
 
@@ -1329,6 +1564,12 @@ function bindEvents() {
     if (event.altKey && event.key.toLowerCase() === "o") {
       event.preventDefault();
       toggleQuickObjectionDrawer();
+      return;
+    }
+
+    if (event.altKey && event.key.toLowerCase() === "m") {
+      event.preventDefault();
+      setViewMode(isLiveMode() ? "practice" : "live");
       return;
     }
 
