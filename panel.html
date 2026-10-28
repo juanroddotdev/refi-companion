@@ -8,42 +8,136 @@
   </head>
   <body>
     <main class="app-shell">
-      <header class="app-header">
-        <div>
-          <p class="eyebrow">Refi Companion</p>
-          <h1>Call Script</h1>
+      <header class="top-cockpit">
+        <div class="top-row">
+          <div class="brand-lockup">
+            <span class="brand-dot" aria-hidden="true"></span>
+            <div>
+              <p class="eyebrow">Refi Companion</p>
+              <h1>Call Script</h1>
+            </div>
+          </div>
+          <div class="controls" role="group" aria-label="Call controls">
+            <button
+              id="quick-objection-toggle"
+              class="ghost-button"
+              type="button"
+              aria-expanded="false"
+              aria-controls="quick-objection-drawer"
+              title="Quick Objections (Alt+O)"
+            >
+              Objections
+            </button>
+            <button
+              id="new-call"
+              class="secondary-button"
+              type="button"
+              title="Reset call notes & checklist"
+            >
+              New Call
+            </button>
+            <button
+              id="copy-notes"
+              class="primary-button"
+              type="button"
+              title="Copy formatted CRM note (Cmd/Ctrl+Shift+C)"
+            >
+              Copy CRM
+            </button>
+          </div>
         </div>
+
+        <div id="live-metrics-strip" class="metrics-strip" aria-live="polite"></div>
+
+        <nav id="step-list" class="step-rail" aria-label="Script steps"></nav>
       </header>
 
-      <section class="controls" aria-label="Call controls">
-        <button id="new-call" class="secondary-button" type="button">New Call</button>
-        <button id="copy-notes" class="primary-button" type="button">Copy Notes</button>
-      </section>
-
-      <nav id="step-list" class="step-list" aria-label="Script steps"></nav>
+      <section
+        id="quick-objection-drawer"
+        class="quick-drawer"
+        hidden
+        aria-label="Instant Objection Handler"
+      ></section>
 
       <p id="step-status" class="visually-hidden" aria-live="polite"></p>
 
       <section id="step-detail" class="step-detail"></section>
 
-      <section class="notes-panel" aria-labelledby="notes-title">
-        <div class="section-heading">
-          <p class="eyebrow">Scratchpad</p>
-          <h2 id="notes-title">Borrower Notes</h2>
+      <section id="notes-dock" class="notes-panel" aria-labelledby="notes-title">
+        <div class="notes-header">
+          <div class="notes-title-group">
+            <h2 id="notes-title">Borrower Scratchpad</h2>
+            <span id="copy-status" class="copy-status" role="status"></span>
+          </div>
+          <button
+            id="toggle-notes"
+            class="notes-collapse-btn"
+            type="button"
+            aria-expanded="true"
+            title="Collapse or expand scratchpad"
+          >
+            Hide
+          </button>
         </div>
-        <label>
-          Borrower goal
-          <textarea id="goal-note" rows="3" placeholder="Lower payment, cash-out, term reduction..."></textarea>
-        </label>
-        <label>
-          Loan details
-          <textarea id="loan-note" rows="3" placeholder="Current rate, balance, payment, term..."></textarea>
-        </label>
-        <label>
-          Objections / next step
-          <textarea id="next-note" rows="3" placeholder="Spouse review, fee concern, follow-up date..."></textarea>
-        </label>
-        <p id="copy-status" class="copy-status" role="status"></p>
+
+        <div id="notes-body" class="notes-body">
+          <div class="notes-tabs" role="tablist" aria-label="Note categories">
+            <button
+              type="button"
+              class="note-tab"
+              role="tab"
+              data-note-tab="goal"
+              aria-selected="true"
+            >
+              Goal &amp; Story
+            </button>
+            <button
+              type="button"
+              class="note-tab"
+              role="tab"
+              data-note-tab="loan"
+              aria-selected="false"
+            >
+              Loan Snapshot
+            </button>
+            <button
+              type="button"
+              class="note-tab"
+              role="tab"
+              data-note-tab="next"
+              aria-selected="false"
+            >
+              Objections / Next
+            </button>
+          </div>
+
+          <div class="note-panes">
+            <label class="note-pane" data-note-pane="goal">
+              <span class="visually-hidden">Borrower goal</span>
+              <textarea
+                id="goal-note"
+                rows="2"
+                placeholder="Motivation, cash-out purpose, why now, what happens if they do nothing..."
+              ></textarea>
+            </label>
+            <label class="note-pane" data-note-pane="loan" hidden>
+              <span class="visually-hidden">Loan details</span>
+              <textarea
+                id="loan-note"
+                rows="2"
+                placeholder="Escrows, LTV/value estimate, FICO, income/assets notes..."
+              ></textarea>
+            </label>
+            <label class="note-pane" data-note-pane="next" hidden>
+              <span class="visually-hidden">Objections / next step</span>
+              <textarea
+                id="next-note"
+                rows="2"
+                placeholder="Spouse name, docs needed, follow-up date/time, lock status..."
+              ></textarea>
+            </label>
+          </div>
+        </div>
       </section>
     </main>
 

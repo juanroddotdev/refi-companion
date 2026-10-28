@@ -104,6 +104,12 @@
     "script": "Most objections are requests for more certainty. Slow down, validate the concern, and bring the conversation back to the borrower's original goal.",
     "rebuttals": [
       {
+        "id": "whats-the-rate",
+        "label": "Just tell me the rate",
+        "response": "I will share the exact rate right now—I just need 60 seconds to confirm your balance and goal so I quote you a real, accurate structure instead of a bait-and-switch teaser.",
+        "followUp": "Are you mainly looking to drop the monthly payment or pull cash out?"
+      },
+      {
         "id": "rates-drop",
         "label": "Rates might drop",
         "response": "That is a fair thought. Since no one can guarantee future rates, I would look at what this solves today and whether the savings or structure gives you enough benefit now.",
@@ -126,6 +132,12 @@
         "label": "Do not reset term",
         "response": "That makes sense. Resetting the term is not the only way to structure this. We can compare a shorter term or payment-focused option and look at total interest.",
         "followUp": "Would you rather optimize for lowest payment or lowest total interest?"
+      },
+      {
+        "id": "shop-around",
+        "label": "Shopping other lenders",
+        "response": "Smart move—you should compare. Just make sure you compare locked Loan Estimates on the same day with the same points vs. lender credit so you do not get burned by hidden fees.",
+        "followUp": "Have they given you an official locked Loan Estimate yet, or just a verbal quote?"
       }
     ]
   },
@@ -138,20 +150,28 @@
     "script": "If the first structure is close but not quite right, pivot the loan design instead of ending the conversation.",
     "options": [
       {
+        "id": "lender-credit",
         "title": "Lender Credit",
-        "description": "Trade a slightly higher rate for lower upfront cost when cash to close is the blocker."
+        "description": "Trade a slightly higher rate for lower upfront cost when cash to close is the blocker.",
+        "talkTrack": "If keeping costs down is the priority, we can bump the rate slightly and use a lender credit to cover most or all of the closing costs—shortening your break-even right away."
       },
       {
+        "id": "shorter-term",
         "title": "Shorter Term",
-        "description": "Compare a 20-year or 15-year term when the borrower is worried about resetting the clock."
+        "description": "Compare a 20-year or 15-year term when the borrower is worried about resetting the clock.",
+        "talkTrack": "Instead of resetting back to 30 years, let's look at a 20- or 15-year custom term so you shave years off your mortgage and save tens of thousands in interest."
       },
       {
+        "id": "payment-focus",
         "title": "Payment Focus",
-        "description": "Optimize for monthly relief when cash flow is the primary goal."
+        "description": "Optimize for monthly relief when cash flow is the primary goal.",
+        "talkTrack": "Let's stretch the term to maximize monthly cash-flow relief right now—you can always prepay principal whenever you want with zero penalty."
       },
       {
+        "id": "follow-up-plan",
         "title": "Follow-Up Plan",
-        "description": "Set a specific date and reason to reconnect if the borrower is not ready today."
+        "description": "Set a specific date and reason to reconnect if the borrower is not ready today.",
+        "talkTrack": "Let's lock in a 10-minute follow-up call for tomorrow after you've reviewed the numbers together, and I will set a rate-watch alert on your file in the meantime."
       }
     ]
   }

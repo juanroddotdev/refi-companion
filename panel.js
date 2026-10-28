@@ -1,7 +1,38 @@
+const GOAL_CHIPS = [
+  "Lower Payment",
+  "Cash-Out / Debt Consolidation",
+  "Shorten Term",
+  "Remove MI / Switch to Fixed"
+];
+
+const SHORT_STEP_LABELS = {
+  intro: "Intro",
+  discovery: "Discov",
+  recap: "Recap",
+  "set-stage": "Stage",
+  close: "Close",
+  rebuttal: "Object",
+  pivot: "Pivot"
+};
+
 const defaultState = {
   activeStepId: "",
   checkedItems: {},
   selectedRebuttalId: "",
+  selectedPivotId: "",
+  activeNoteTab: "goal",
+  notesCollapsed: false,
+  deal: {
+    primaryGoal: "",
+    currentBalance: "",
+    currentRate: "",
+    currentPayment: "",
+    proposedRate: "",
+    proposedTerm: "30 yr",
+    proposedPayment: "",
+    netCost: "",
+    cashOut: ""
+  },
   notes: {
     goal: "",
     loan: "",
@@ -10,16 +41,21 @@ const defaultState = {
 };
 
 const LEGACY_TIMER_KEYS = ["timerRunning", "timerStartedAt", "elapsedBeforeStart"];
-const SAVE_DELAY_MS = 300;
+const SAVE_DELAY_MS = 250;
 const CLEAR_CONFIRM_MS = 5000;
 
 const elements = {
   newCall: document.querySelector("#new-call"),
   copyNotes: document.querySelector("#copy-notes"),
   copyStatus: document.querySelector("#copy-status"),
+  quickObjectionToggle: document.querySelector("#quick-objection-toggle"),
+  quickObjectionDrawer: document.querySelector("#quick-objection-drawer"),
+  liveMetricsStrip: document.querySelector("#live-metrics-strip"),
   stepList: document.querySelector("#step-list"),
   stepDetail: document.querySelector("#step-detail"),
   stepStatus: document.querySelector("#step-status"),
+  toggleNotes: document.querySelector("#toggle-notes"),
+  notesBody: document.querySelector("#notes-body"),
   goalNote: document.querySelector("#goal-note"),
   loanNote: document.querySelector("#loan-note"),
   nextNote: document.querySelector("#next-note")
@@ -31,6 +67,7 @@ let saveTimer = null;
 let clearConfirmTimer = null;
 let copyStatusTimer = null;
 let clearArmed = false;
+let quickObjectionOpen = false;
 let persistQueue = Promise.resolve();
 
 function escapeHtml(value) {
@@ -40,6 +77,65 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function parseNumber(value) {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return NaN;
+  }
+  const cleaned = String(value).replace(/[^0-9.-]/g, "");
+  if (!cleaned) {
+    return NaN;
+  }
+  const parsed = Number.parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function formatCurrency(amount) {
+  if (!Number.isFinite(amount)) {
+    return "—";
+  }
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0
+  }).format(Math.round(amount));
+}
+
+function computeDealMetrics(deal = state.deal) {
+  const currentPayment = parseNumber(deal.currentPayment);
+  const proposedPayment = parseNumber(deal.proposedPayment);
+  const netCost = parseNumber(deal.netCost);
+  const cashOut = parseNumber(deal.cashOut);
+
+  const monthlySavings =
+    Number.isFinite(currentPayment) && Number.isFinite(proposedPayment)
+      ? currentPayment - proposedPayment
+      : NaN;
+
+  const annualSavings = Number.isFinite(monthlySavings) ? monthlySavings * 12 : NaN;
+
+  let breakEvenLabel = "—";
+  let breakEvenMonths = NaN;
+
+  if (Number.isFinite(netCost) && netCost <= 0 && Number.isFinite(monthlySavings) && monthlySavings > 0) {
+    breakEvenLabel = "Immediate (0 mos)";
+    breakEvenMonths = 0;
+  } else if (Number.isFinite(netCost) && netCost > 0 && Number.isFinite(monthlySavings) && monthlySavings > 0) {
+    breakEvenMonths = Math.ceil(netCost / monthlySavings);
+    breakEvenLabel = `${breakEvenMonths} mo${breakEvenMonths === 1 ? "" : "s"}`;
+  }
+
+  return {
+    currentPayment,
+    proposedPayment,
+    netCost,
+    cashOut,
+    monthlySavings,
+    annualSavings,
+    breakEvenMonths,
+    breakEvenLabel
+  };
 }
 
 async function loadSteps() {
@@ -72,6 +168,25 @@ function normalizeNotes(notes) {
   };
 }
 
+function normalizeDeal(deal) {
+  const fallback = defaultState.deal;
+  if (!deal || typeof deal !== "object") {
+    return structuredClone(fallback);
+  }
+
+  return {
+    primaryGoal: typeof deal.primaryGoal === "string" ? deal.primaryGoal : "",
+    currentBalance: typeof deal.currentBalance === "string" ? deal.currentBalance : "",
+    currentRate: typeof deal.currentRate === "string" ? deal.currentRate : "",
+    currentPayment: typeof deal.currentPayment === "string" ? deal.currentPayment : "",
+    proposedRate: typeof deal.proposedRate === "string" ? deal.proposedRate : "",
+    proposedTerm: typeof deal.proposedTerm === "string" && deal.proposedTerm ? deal.proposedTerm : "30 yr",
+    proposedPayment: typeof deal.proposedPayment === "string" ? deal.proposedPayment : "",
+    netCost: typeof deal.netCost === "string" ? deal.netCost : "",
+    cashOut: typeof deal.cashOut === "string" ? deal.cashOut : ""
+  };
+}
+
 function normalizeCheckedItems(checkedItems) {
   if (!checkedItems || typeof checkedItems !== "object" || Array.isArray(checkedItems)) {
     return {};
@@ -96,10 +211,17 @@ function stripLegacyState(storedState) {
   }
 
   next.notes = normalizeNotes(next.notes);
+  next.deal = normalizeDeal(next.deal);
   next.checkedItems = normalizeCheckedItems(next.checkedItems);
   next.selectedRebuttalId =
     typeof next.selectedRebuttalId === "string" ? next.selectedRebuttalId : "";
+  next.selectedPivotId =
+    typeof next.selectedPivotId === "string" ? next.selectedPivotId : "";
   next.activeStepId = typeof next.activeStepId === "string" ? next.activeStepId : "";
+  next.activeNoteTab = ["goal", "loan", "next"].includes(next.activeNoteTab)
+    ? next.activeNoteTab
+    : "goal";
+  next.notesCollapsed = Boolean(next.notesCollapsed);
   return next;
 }
 
@@ -146,6 +268,10 @@ function getActiveStep() {
   return steps.find((step) => step.id === state.activeStepId) || steps[0];
 }
 
+function getAllRebuttals() {
+  return steps.flatMap((step) => step.rebuttals || []);
+}
+
 function getCheckedItems(stepId) {
   const items = state.checkedItems[stepId];
   if (!Array.isArray(items)) {
@@ -153,6 +279,32 @@ function getCheckedItems(stepId) {
   }
 
   return items.filter((item) => typeof item === "string");
+}
+
+function markChecklistItem(stepId, itemSubstring) {
+  const step = steps.find((entry) => entry.id === stepId);
+  if (!step?.checklist?.length) {
+    return;
+  }
+
+  const match = step.checklist.find((item) =>
+    item.toLowerCase().includes(itemSubstring.toLowerCase())
+  );
+  if (!match) {
+    return;
+  }
+
+  const checked = new Set(getCheckedItems(stepId));
+  if (!checked.has(match)) {
+    checked.add(match);
+    state = {
+      ...state,
+      checkedItems: {
+        ...state.checkedItems,
+        [stepId]: [...checked].sort()
+      }
+    };
+  }
 }
 
 function isStepComplete(step) {
@@ -164,19 +316,98 @@ function isStepComplete(step) {
   return step.checklist.every((item) => checked.has(item));
 }
 
+function isFirstStep(step) {
+  return steps[0]?.id === step.id;
+}
+
 function isLastStep(step) {
   return steps.at(-1)?.id === step.id;
 }
 
 function findSelectedRebuttal() {
-  for (const step of steps) {
-    const match = step.rebuttals?.find((rebuttal) => rebuttal.id === state.selectedRebuttalId);
-    if (match) {
-      return match;
-    }
+  const all = getAllRebuttals();
+  return all.find((rebuttal) => rebuttal.id === state.selectedRebuttalId) || null;
+}
+
+function interpolateTalkTrack(rawScript) {
+  if (!rawScript) {
+    return "";
   }
 
-  return null;
+  const { deal, notes } = state;
+  const metrics = computeDealMetrics(deal);
+  const goalText =
+    deal.primaryGoal ||
+    notes.goal.split(/[.,\n]/)[0]?.trim() ||
+    "your refinance goal";
+
+  let outcomeParts = [];
+  if (Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0) {
+    outcomeParts.push(`saving ${formatCurrency(metrics.monthlySavings)}/mo`);
+  }
+  if (Number.isFinite(metrics.cashOut) && metrics.cashOut > 0) {
+    outcomeParts.push(`accessing ${formatCurrency(metrics.cashOut)} cash out`);
+  }
+  if (deal.proposedRate) {
+    outcomeParts.push(`locking in ${deal.proposedRate}% (${deal.proposedTerm})`);
+  }
+  const benefitText =
+    outcomeParts.join(" and ") ||
+    "a stronger monthly & long-term loan structure";
+
+  let html = escapeHtml(rawScript);
+  html = html.replace(
+    /\[goal\]/gi,
+    `<span class="dynamic-token">${escapeHtml(goalText.toLowerCase())}</span>`
+  );
+  html = html.replace(
+    /\[payment, cash, term, or certainty outcome\]/gi,
+    `<span class="dynamic-token">${escapeHtml(benefitText)}</span>`
+  );
+  html = html.replace(
+    /\[benefit\]/gi,
+    `<span class="dynamic-token">${escapeHtml(benefitText)}</span>`
+  );
+  return html;
+}
+
+function renderLiveMetricsStrip() {
+  const { deal } = state;
+  const metrics = computeDealMetrics(deal);
+  const badges = [];
+
+  if (deal.primaryGoal) {
+    badges.push(
+      `<span class="metric-badge">Goal: <strong>${escapeHtml(deal.primaryGoal)}</strong></span>`
+    );
+  }
+
+  if (deal.currentRate || deal.currentPayment) {
+    const ratePart = deal.currentRate ? `${escapeHtml(deal.currentRate)}%` : "";
+    const pmtPart = Number.isFinite(metrics.currentPayment)
+      ? formatCurrency(metrics.currentPayment)
+      : "";
+    const combined = [ratePart, pmtPart].filter(Boolean).join(" · ");
+    badges.push(`<span class="metric-badge">Curr: <strong>${combined}</strong></span>`);
+  }
+
+  if (Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0) {
+    badges.push(
+      `<span class="metric-badge metric-positive">Saves: <strong>${formatCurrency(
+        metrics.monthlySavings
+      )}/mo</strong> (${formatCurrency(metrics.annualSavings)}/yr)</span>`
+    );
+  }
+
+  if (metrics.breakEvenLabel !== "—") {
+    badges.push(
+      `<span class="metric-badge">Break-even: <strong>${escapeHtml(
+        metrics.breakEvenLabel
+      )}</strong></span>`
+    );
+  }
+
+  elements.liveMetricsStrip.innerHTML = badges.join("");
 }
 
 function renderStepList() {
@@ -184,24 +415,220 @@ function renderStepList() {
     .map((step) => {
       const isActive = step.id === state.activeStepId;
       const complete = isStepComplete(step);
+      const shortLabel = SHORT_STEP_LABELS[step.id] || step.title;
 
       return `
         <button
           class="step-button"
           type="button"
           data-step-id="${escapeHtml(step.id)}"
+          title="Step ${escapeHtml(step.number)}: ${escapeHtml(step.title)} — ${escapeHtml(
+            step.subtitle
+          )}"
           ${isActive ? 'aria-current="step"' : ""}
         >
-          <span class="step-number">${escapeHtml(step.number)}</span>
-          <span>
-            <strong>${escapeHtml(step.title)}</strong><br />
-            <small>${escapeHtml(step.subtitle)}</small>
+          <span class="step-number-row">
+            <span>${escapeHtml(step.number)}</span>
+            ${complete ? '<span class="complete-dot" aria-label="Completed"></span>' : ""}
           </span>
-          <span class="complete-mark">${complete ? "Done" : ""}</span>
+          <span class="step-short-label">${escapeHtml(shortLabel)}</span>
         </button>
       `;
     })
     .join("");
+}
+
+function renderQuickObjectionDrawer() {
+  elements.quickObjectionToggle.setAttribute(
+    "aria-expanded",
+    quickObjectionOpen ? "true" : "false"
+  );
+  elements.quickObjectionDrawer.hidden = !quickObjectionOpen;
+
+  if (!quickObjectionOpen) {
+    return;
+  }
+
+  const allRebuttals = getAllRebuttals();
+  const selected =
+    allRebuttals.find((r) => r.id === state.selectedRebuttalId) || allRebuttals[0];
+
+  if (!selected) {
+    elements.quickObjectionDrawer.innerHTML = "";
+    return;
+  }
+
+  elements.quickObjectionDrawer.innerHTML = `
+    <div class="quick-drawer-header">
+      <h2>Instant Objection Handler</h2>
+      <button type="button" class="close-drawer-btn" data-close-drawer>Close (Esc)</button>
+    </div>
+    <div class="chip-row" role="group" aria-label="Quick objections">
+      ${allRebuttals
+        .map(
+          (rebuttal) => `
+            <button
+              class="chip"
+              type="button"
+              data-rebuttal-id="${escapeHtml(rebuttal.id)}"
+              aria-pressed="${rebuttal.id === selected.id ? "true" : "false"}"
+            >
+              ${escapeHtml(rebuttal.label)}
+            </button>
+          `
+        )
+        .join("")}
+    </div>
+    <article class="script-card" style="margin-top: 8px;">
+      <span class="script-card-label">Say This (${escapeHtml(selected.label)})</span>
+      <p>${escapeHtml(selected.response)}</p>
+      <strong>Follow-up question:</strong>
+      <p>${escapeHtml(selected.followUp)}</p>
+    </article>
+  `;
+}
+
+function renderDiscoveryWidget() {
+  const { deal } = state;
+
+  return `
+    <section class="inline-widget" aria-label="Discovery quick capture">
+      <p class="widget-label">1-Click Borrower Goal</p>
+      <div class="chip-row" role="group" aria-label="Primary borrower goal">
+        ${GOAL_CHIPS.map(
+          (goal) => `
+            <button
+              type="button"
+              class="chip"
+              data-goal-chip="${escapeHtml(goal)}"
+              aria-pressed="${deal.primaryGoal === goal ? "true" : "false"}"
+            >
+              ${escapeHtml(goal)}
+            </button>
+          `
+        ).join("")}
+      </div>
+      <div class="calc-grid">
+        <label class="calc-field">
+          Curr Balance ($)
+          <input
+            type="text"
+            inputmode="decimal"
+            data-deal-field="currentBalance"
+            placeholder="385,000"
+            value="${escapeHtml(deal.currentBalance)}"
+          />
+        </label>
+        <label class="calc-field">
+          Curr Rate (%)
+          <input
+            type="text"
+            inputmode="decimal"
+            data-deal-field="currentRate"
+            placeholder="7.125"
+            value="${escapeHtml(deal.currentRate)}"
+          />
+        </label>
+        <label class="calc-field">
+          Curr P&amp;I ($/mo)
+          <input
+            type="text"
+            inputmode="decimal"
+            data-deal-field="currentPayment"
+            placeholder="2,640"
+            value="${escapeHtml(deal.currentPayment)}"
+          />
+        </label>
+      </div>
+    </section>
+  `;
+}
+
+function renderCloseWidget() {
+  const { deal } = state;
+  const metrics = computeDealMetrics(deal);
+  const hasSavings = Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0;
+
+  return `
+    <section class="inline-widget" aria-label="Refi Close Calculator">
+      <p class="widget-label">Proposed Offer &amp; Break-Even Calculator</p>
+      <div class="calc-grid">
+        <label class="calc-field">
+          New Rate (%)
+          <input
+            type="text"
+            inputmode="decimal"
+            data-deal-field="proposedRate"
+            placeholder="5.875"
+            value="${escapeHtml(deal.proposedRate)}"
+          />
+        </label>
+        <label class="calc-field">
+          New Term
+          <select data-deal-field="proposedTerm">
+            ${["30 yr", "25 yr", "20 yr", "15 yr", "10 yr"]
+              .map(
+                (term) =>
+                  `<option value="${term}" ${
+                    deal.proposedTerm === term ? "selected" : ""
+                  }>${term}</option>`
+              )
+              .join("")}
+          </select>
+        </label>
+        <label class="calc-field">
+          New P&amp;I ($/mo)
+          <input
+            type="text"
+            inputmode="decimal"
+            data-deal-field="proposedPayment"
+            placeholder="2,280"
+            value="${escapeHtml(deal.proposedPayment)}"
+          />
+        </label>
+      </div>
+      <div class="calc-grid-2">
+        <label class="calc-field">
+          Net Cost / Credit ($)
+          <input
+            type="text"
+            inputmode="decimal"
+            data-deal-field="netCost"
+            placeholder="1,800 (or 0)"
+            value="${escapeHtml(deal.netCost)}"
+          />
+        </label>
+        <label class="calc-field">
+          Cash Out ($ optional)
+          <input
+            type="text"
+            inputmode="decimal"
+            data-deal-field="cashOut"
+            placeholder="0"
+            value="${escapeHtml(deal.cashOut)}"
+          />
+        </label>
+      </div>
+      <div id="close-calc-summary" class="calc-output-row">
+        <div class="calc-stat ${hasSavings ? "stat-positive" : ""}">
+          <span class="calc-stat-label">Monthly / Annual Savings</span>
+          <span class="calc-stat-value">
+            ${
+              hasSavings
+                ? `${formatCurrency(metrics.monthlySavings)}/mo (${formatCurrency(
+                    metrics.annualSavings
+                  )}/yr)`
+                : "Enter Curr & New Pmt"
+            }
+          </span>
+        </div>
+        <div class="calc-stat">
+          <span class="calc-stat-label">Break-Even Period</span>
+          <span class="calc-stat-value">${escapeHtml(metrics.breakEvenLabel)}</span>
+        </div>
+      </div>
+    </section>
+  `;
 }
 
 function renderChecklist(step) {
@@ -212,36 +639,42 @@ function renderChecklist(step) {
   const checkedItems = getCheckedItems(step.id);
 
   return `
-    <ul class="checklist" aria-label="${escapeHtml(step.title)} checklist">
-      ${step.checklist
-        .map(
-          (item, index) => `
-            <li>
-              <label>
-                <input
-                  type="checkbox"
-                  data-check-index="${index}"
-                  ${checkedItems.includes(item) ? "checked" : ""}
-                />
-                ${escapeHtml(item)}
-              </label>
-            </li>
-          `
-        )
-        .join("")}
-    </ul>
+    <div>
+      <p class="section-sublabel">Step Checklist</p>
+      <ul class="checklist" aria-label="${escapeHtml(step.title)} checklist">
+        ${step.checklist
+          .map(
+            (item, index) => `
+              <li>
+                <label>
+                  <input
+                    type="checkbox"
+                    data-check-index="${index}"
+                    ${checkedItems.includes(item) ? "checked" : ""}
+                  />
+                  <span>${escapeHtml(item)}</span>
+                </label>
+              </li>
+            `
+          )
+          .join("")}
+      </ul>
+    </div>
   `;
 }
 
 function renderPrompts(step) {
-  if (!step.prompts?.length) {
+  if (!step.prompts?.length || step.id === "close") {
     return "";
   }
 
   return `
-    <ul class="prompt-list">
-      ${step.prompts.map((prompt) => `<li>${escapeHtml(prompt)}</li>`).join("")}
-    </ul>
+    <div>
+      <p class="section-sublabel">Questions to Ask</p>
+      <ul class="prompt-list">
+        ${step.prompts.map((prompt) => `<li>${escapeHtml(prompt)}</li>`).join("")}
+      </ul>
+    </div>
   `;
 }
 
@@ -263,7 +696,7 @@ function renderRebuttals(step) {
               class="chip"
               type="button"
               data-rebuttal-id="${escapeHtml(rebuttal.id)}"
-              aria-pressed="${rebuttal.id === state.selectedRebuttalId ? "true" : "false"}"
+              aria-pressed="${rebuttal.id === selected.id ? "true" : "false"}"
             >
               ${escapeHtml(rebuttal.label)}
             </button>
@@ -272,9 +705,9 @@ function renderRebuttals(step) {
         .join("")}
     </div>
     <article class="script-card">
-      <h3>${escapeHtml(selected.label)}</h3>
+      <span class="script-card-label">${escapeHtml(selected.label)}</span>
       <p>${escapeHtml(selected.response)}</p>
-      <strong>Follow-up:</strong>
+      <strong>Follow-up question:</strong>
       <p>${escapeHtml(selected.followUp)}</p>
     </article>
   `;
@@ -285,19 +718,42 @@ function renderOptions(step) {
     return "";
   }
 
+  const selectedOption =
+    step.options.find((opt) => (opt.id || opt.title) === state.selectedPivotId) ||
+    step.options[0];
+
   return `
-    <div class="option-grid">
+    <div class="option-grid" role="group" aria-label="Loan structure pivots">
       ${step.options
-        .map(
-          (option) => `
-            <article class="option-card">
+        .map((option) => {
+          const optId = option.id || option.title;
+          const isSelected = optId === (selectedOption.id || selectedOption.title);
+          return `
+            <button
+              type="button"
+              class="option-card"
+              data-pivot-id="${escapeHtml(optId)}"
+              aria-pressed="${isSelected ? "true" : "false"}"
+            >
               <h3>${escapeHtml(option.title)}</h3>
               <p>${escapeHtml(option.description)}</p>
-            </article>
-          `
-        )
+            </button>
+          `;
+        })
         .join("")}
     </div>
+    ${
+      selectedOption?.talkTrack
+        ? `
+          <article class="script-card">
+            <span class="script-card-label">Pivot Talk Track — ${escapeHtml(
+              selectedOption.title
+            )}</span>
+            <p>${escapeHtml(selectedOption.talkTrack)}</p>
+          </article>
+        `
+        : ""
+    }
   `;
 }
 
@@ -308,24 +764,49 @@ function renderStepDetail() {
     return;
   }
 
+  const onFirstStep = isFirstStep(step);
   const onLastStep = isLastStep(step);
 
   elements.stepDetail.innerHTML = `
-    <p class="step-kicker">Step ${escapeHtml(step.number)}</p>
-    <h2 id="step-title" class="step-title" tabindex="-1">${escapeHtml(step.title)}</h2>
-    <p>${escapeHtml(step.goal)}</p>
+    <div class="step-header-bar">
+      <div class="step-title-wrap">
+        <span class="step-kicker">Step ${escapeHtml(step.number)}</span>
+        <h2 id="step-title" class="step-title" tabindex="-1">${escapeHtml(step.title)}</h2>
+      </div>
+      <p class="step-subtitle">${escapeHtml(step.subtitle)}</p>
+    </div>
+    <p class="step-goal">${escapeHtml(step.goal)}</p>
     ${
       step.script
-        ? `<article class="script-card"><strong>Talk track</strong><p>${escapeHtml(step.script)}</p></article>`
+        ? `<article class="script-card"><span class="script-card-label">Talk Track</span><p id="active-talk-track">${interpolateTalkTrack(
+            step.script
+          )}</p></article>`
         : ""
     }
-    ${renderChecklist(step)}
+    ${step.id === "discovery" ? renderDiscoveryWidget() : ""}
+    ${step.id === "close" ? renderCloseWidget() : ""}
     ${renderPrompts(step)}
     ${renderRebuttals(step)}
     ${renderOptions(step)}
-    <button class="next-button" type="button" ${onLastStep ? "disabled" : "data-next-step"}>
-      ${onLastStep ? "End of script" : "Next Step"}
-    </button>
+    ${renderChecklist(step)}
+    <div class="step-nav-footer">
+      <button
+        class="prev-button"
+        type="button"
+        title="Previous Step (Alt+Left)"
+        ${onFirstStep ? "disabled" : "data-prev-step"}
+      >
+        ← Back
+      </button>
+      <button
+        class="next-button"
+        type="button"
+        title="Next Step (Alt+Right)"
+        ${onLastStep ? "disabled" : "data-next-step"}
+      >
+        ${onLastStep ? "End of Script" : "Next Step →"}
+      </button>
+    </div>
   `;
 }
 
@@ -333,6 +814,34 @@ function renderNotes() {
   elements.goalNote.value = state.notes.goal;
   elements.loanNote.value = state.notes.loan;
   elements.nextNote.value = state.notes.next;
+
+  elements.notesBody.hidden = Boolean(state.notesCollapsed);
+  elements.toggleNotes.setAttribute(
+    "aria-expanded",
+    state.notesCollapsed ? "false" : "true"
+  );
+  elements.toggleNotes.textContent = state.notesCollapsed ? "Expand" : "Hide";
+
+  for (const tabBtn of document.querySelectorAll("[data-note-tab]")) {
+    const key = tabBtn.dataset.noteTab;
+    const isSelected = key === state.activeNoteTab;
+    tabBtn.setAttribute("aria-selected", isSelected ? "true" : "false");
+
+    const hasContent = Boolean(state.notes[key]?.trim());
+    const dot = tabBtn.querySelector(".tab-dot");
+    if (hasContent && !dot) {
+      tabBtn.insertAdjacentHTML(
+        "beforeend",
+        '<span class="tab-dot" aria-hidden="true"></span>'
+      );
+    } else if (!hasContent && dot) {
+      dot.remove();
+    }
+  }
+
+  for (const pane of document.querySelectorAll("[data-note-pane]")) {
+    pane.hidden = pane.dataset.notePane !== state.activeNoteTab;
+  }
 }
 
 function announceStep() {
@@ -349,7 +858,9 @@ function focusStepTitle() {
 }
 
 function renderApp({ announce = false, focusStep = false } = {}) {
+  renderLiveMetricsStrip();
   renderStepList();
+  renderQuickObjectionDrawer();
   renderStepDetail();
   renderNotes();
 
@@ -368,17 +879,27 @@ async function setActiveStep(stepId) {
     return;
   }
 
-  await flushState({ activeStepId: stepId });
+  const autoTab =
+    stepId === "discovery"
+      ? "goal"
+      : stepId === "close"
+        ? "loan"
+        : stepId === "rebuttal" || stepId === "pivot"
+          ? "next"
+          : state.activeNoteTab;
+
+  await flushState({ activeStepId: stepId, activeNoteTab: autoTab });
   renderApp({ announce: true, focusStep: true });
 }
 
-async function goToNextStep() {
+async function goToAdjacentStep(delta) {
   const currentIndex = steps.findIndex((step) => step.id === state.activeStepId);
-  if (currentIndex < 0 || currentIndex >= steps.length - 1) {
+  const nextIndex = currentIndex + delta;
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= steps.length) {
     return;
   }
 
-  await setActiveStep(steps[currentIndex + 1].id);
+  await setActiveStep(steps[nextIndex].id);
 }
 
 async function updateChecklist(step, checkbox) {
@@ -417,7 +938,101 @@ function rememberNotes() {
 
 function updateNotes() {
   rememberNotes();
+  renderLiveMetricsStrip();
+  const step = getActiveStep();
+  const talkTrackEl = document.getElementById("active-talk-track");
+  if (step?.script && talkTrackEl) {
+    talkTrackEl.innerHTML = interpolateTalkTrack(step.script);
+  }
+  renderNotes();
   schedulePersist();
+}
+
+function updateCloseSummaryInPlace() {
+  const summaryEl = document.getElementById("close-calc-summary");
+  if (!summaryEl) {
+    return;
+  }
+  const metrics = computeDealMetrics(state.deal);
+  const hasSavings = Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0;
+  summaryEl.innerHTML = `
+    <div class="calc-stat ${hasSavings ? "stat-positive" : ""}">
+      <span class="calc-stat-label">Monthly / Annual Savings</span>
+      <span class="calc-stat-value">
+        ${
+          hasSavings
+            ? `${formatCurrency(metrics.monthlySavings)}/mo (${formatCurrency(
+                metrics.annualSavings
+              )}/yr)`
+            : "Enter Curr & New Pmt"
+        }
+      </span>
+    </div>
+    <div class="calc-stat">
+      <span class="calc-stat-label">Break-Even Period</span>
+      <span class="calc-stat-value">${escapeHtml(metrics.breakEvenLabel)}</span>
+    </div>
+  `;
+}
+
+function handleDealFieldInput(inputEl) {
+  const field = inputEl.dataset.dealField;
+  if (!field) {
+    return;
+  }
+
+  state = {
+    ...state,
+    deal: {
+      ...state.deal,
+      [field]: inputEl.value
+    }
+  };
+
+  if (field === "currentBalance" && inputEl.value.trim()) {
+    markChecklistItem("discovery", "current balance");
+  } else if (field === "currentRate" && inputEl.value.trim()) {
+    markChecklistItem("discovery", "current rate");
+  } else if (field === "currentPayment" && inputEl.value.trim()) {
+    markChecklistItem("discovery", "current payment");
+  } else if (field === "proposedPayment" && inputEl.value.trim()) {
+    markChecklistItem("close", "proposed payment");
+  } else if (field === "proposedRate" && inputEl.value.trim()) {
+    markChecklistItem("close", "rate and term");
+  } else if (field === "netCost" && inputEl.value.trim()) {
+    markChecklistItem("close", "closing costs");
+    markChecklistItem("close", "break-even");
+  }
+
+  renderLiveMetricsStrip();
+  renderStepList();
+  updateCloseSummaryInPlace();
+
+  const step = getActiveStep();
+  const talkTrackEl = document.getElementById("active-talk-track");
+  if (step?.script && talkTrackEl) {
+    talkTrackEl.innerHTML = interpolateTalkTrack(step.script);
+  }
+
+  schedulePersist();
+}
+
+async function selectGoalChip(goalValue) {
+  const nextGoal = state.deal.primaryGoal === goalValue ? "" : goalValue;
+  state = {
+    ...state,
+    deal: {
+      ...state.deal,
+      primaryGoal: nextGoal
+    }
+  };
+
+  if (nextGoal) {
+    markChecklistItem("discovery", "primary goal");
+  }
+
+  await flushState();
+  renderApp();
 }
 
 function openChecklistLines() {
@@ -448,13 +1063,45 @@ function openChecklistLines() {
 
 function buildCrmNote() {
   const step = getActiveStep();
+  const { deal, notes } = state;
+  const metrics = computeDealMetrics(deal);
+
+  const goalSummary =
+    [deal.primaryGoal, notes.goal].filter(Boolean).join(" — ") || "Not captured";
+
+  const currentSnap = [
+    deal.currentBalance ? `Bal: $${deal.currentBalance}` : "",
+    deal.currentRate ? `Rate: ${deal.currentRate}%` : "",
+    deal.currentPayment ? `Pmt: $${deal.currentPayment}/mo` : ""
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  const proposedSnap = [
+    deal.proposedRate ? `New Rate: ${deal.proposedRate}% (${deal.proposedTerm})` : "",
+    deal.proposedPayment ? `New Pmt: $${deal.proposedPayment}/mo` : "",
+    Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0
+      ? `Savings: ${formatCurrency(metrics.monthlySavings)}/mo (${formatCurrency(
+          metrics.annualSavings
+        )}/yr)`
+      : "",
+    metrics.breakEvenLabel !== "—" ? `Break-Even: ${metrics.breakEvenLabel}` : "",
+    deal.cashOut ? `Cash Out: $${deal.cashOut}` : ""
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  const loanDetailsCombined =
+    [currentSnap, proposedSnap, notes.loan].filter(Boolean).join(" // ") ||
+    "Not captured";
+
   const lines = [
     "REFI CALL NOTES",
     `Current step: ${step.number}. ${step.title}`,
     "",
-    `Borrower goal: ${state.notes.goal || "Not captured"}`,
-    `Loan details: ${state.notes.loan || "Not captured"}`,
-    `Objections / next step: ${state.notes.next || "Not captured"}`
+    `Borrower goal: ${goalSummary}`,
+    `Loan details: ${loanDetailsCombined}`,
+    `Objections / next step: ${notes.next || "Not captured"}`
   ];
 
   const selected = findSelectedRebuttal();
@@ -487,7 +1134,7 @@ async function copyNotes() {
 
   try {
     await navigator.clipboard.writeText(buildCrmNote());
-    setCopyStatus("Notes copied to clipboard.");
+    setCopyStatus("Copied to clipboard!");
   } catch {
     setCopyStatus("Could not copy notes.", "error");
   }
@@ -495,7 +1142,7 @@ async function copyNotes() {
 
 function armClearCall() {
   clearArmed = true;
-  elements.newCall.textContent = "Clear this call?";
+  elements.newCall.textContent = "Confirm Clear?";
   elements.newCall.setAttribute("aria-pressed", "true");
   clearTimeout(clearConfirmTimer);
   clearConfirmTimer = setTimeout(disarmClearCall, CLEAR_CONFIRM_MS);
@@ -516,6 +1163,7 @@ async function resetCall() {
   }
 
   disarmClearCall();
+  quickObjectionOpen = false;
   await flushState({
     ...structuredClone(defaultState),
     activeStepId: steps[0]?.id || ""
@@ -525,13 +1173,55 @@ async function resetCall() {
 
 async function selectRebuttal(rebuttalId) {
   await flushState({ selectedRebuttalId: rebuttalId });
+  renderQuickObjectionDrawer();
   renderStepDetail();
-  document.querySelector(`[data-rebuttal-id="${CSS.escape(rebuttalId)}"]`)?.focus();
+}
+
+async function selectPivot(pivotId) {
+  await flushState({ selectedPivotId: pivotId });
+  renderStepDetail();
+}
+
+function toggleQuickObjectionDrawer() {
+  quickObjectionOpen = !quickObjectionOpen;
+  renderQuickObjectionDrawer();
 }
 
 function bindEvents() {
   elements.newCall.addEventListener("click", resetCall);
   elements.copyNotes.addEventListener("click", copyNotes);
+  elements.quickObjectionToggle.addEventListener("click", () => {
+    disarmClearCall();
+    toggleQuickObjectionDrawer();
+  });
+
+  elements.quickObjectionDrawer.addEventListener("click", (event) => {
+    if (event.target.closest("[data-close-drawer]")) {
+      quickObjectionOpen = false;
+      renderQuickObjectionDrawer();
+      return;
+    }
+
+    const rebuttalButton = event.target.closest("[data-rebuttal-id]");
+    if (rebuttalButton) {
+      selectRebuttal(rebuttalButton.dataset.rebuttalId);
+    }
+  });
+
+  elements.toggleNotes.addEventListener("click", () => {
+    flushState({ notesCollapsed: !state.notesCollapsed }).then(() => renderNotes());
+  });
+
+  document.querySelector(".notes-tabs")?.addEventListener("click", (event) => {
+    const tabBtn = event.target.closest("[data-note-tab]");
+    if (!tabBtn) {
+      return;
+    }
+    flushState({
+      activeNoteTab: tabBtn.dataset.noteTab,
+      notesCollapsed: false
+    }).then(() => renderNotes());
+  });
 
   for (const textarea of [elements.goalNote, elements.loanNote, elements.nextNote]) {
     textarea.addEventListener("input", updateNotes);
@@ -552,6 +1242,13 @@ function bindEvents() {
   });
 
   elements.stepDetail.addEventListener("click", (event) => {
+    const goalChip = event.target.closest("[data-goal-chip]");
+    if (goalChip) {
+      disarmClearCall();
+      selectGoalChip(goalChip.dataset.goalChip);
+      return;
+    }
+
     const rebuttalButton = event.target.closest("[data-rebuttal-id]");
     if (rebuttalButton) {
       disarmClearCall();
@@ -559,18 +1256,42 @@ function bindEvents() {
       return;
     }
 
+    const pivotButton = event.target.closest("[data-pivot-id]");
+    if (pivotButton) {
+      disarmClearCall();
+      selectPivot(pivotButton.dataset.pivotId);
+      return;
+    }
+
+    if (event.target.closest("[data-prev-step]")) {
+      disarmClearCall();
+      goToAdjacentStep(-1);
+      return;
+    }
+
     if (event.target.closest("[data-next-step]")) {
       disarmClearCall();
-      goToNextStep();
+      goToAdjacentStep(1);
+    }
+  });
+
+  elements.stepDetail.addEventListener("input", (event) => {
+    if (event.target.matches("[data-deal-field]")) {
+      handleDealFieldInput(event.target);
     }
   });
 
   elements.stepDetail.addEventListener("change", (event) => {
-    if (!event.target.matches("[data-check-index]")) {
+    if (event.target.matches("[data-deal-field]")) {
+      handleDealFieldInput(event.target);
+      flushState();
+      renderStepDetail();
       return;
     }
 
-    updateChecklist(getActiveStep(), event.target);
+    if (event.target.matches("[data-check-index]")) {
+      updateChecklist(getActiveStep(), event.target);
+    }
   });
 
   document.addEventListener("click", (event) => {
@@ -582,8 +1303,38 @@ function bindEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && clearArmed) {
-      disarmClearCall();
+    if (event.key === "Escape") {
+      if (clearArmed) {
+        disarmClearCall();
+      }
+      if (quickObjectionOpen) {
+        quickObjectionOpen = false;
+        renderQuickObjectionDrawer();
+      }
+      return;
+    }
+
+    if (event.altKey && event.key === "ArrowRight") {
+      event.preventDefault();
+      goToAdjacentStep(1);
+      return;
+    }
+
+    if (event.altKey && event.key === "ArrowLeft") {
+      event.preventDefault();
+      goToAdjacentStep(-1);
+      return;
+    }
+
+    if (event.altKey && event.key.toLowerCase() === "o") {
+      event.preventDefault();
+      toggleQuickObjectionDrawer();
+      return;
+    }
+
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "c") {
+      event.preventDefault();
+      copyNotes();
     }
   });
 
@@ -615,6 +1366,7 @@ async function init() {
     ...structuredClone(defaultState),
     ...storedState,
     notes: normalizeNotes(storedState.notes),
+    deal: normalizeDeal(storedState.deal),
     checkedItems: normalizeCheckedItems(storedState.checkedItems),
     activeStepId
   };
