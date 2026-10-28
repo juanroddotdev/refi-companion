@@ -13,10 +13,6 @@
           <p class="eyebrow">Refi Companion</p>
           <h1>Call Script</h1>
         </div>
-        <div class="timer-card" aria-label="Call timer">
-          <span id="timer">00:00</span>
-          <button id="timer-toggle" class="ghost-button" type="button">Start</button>
-        </div>
       </header>
 
       <section class="controls" aria-label="Call controls">
@@ -26,7 +22,9 @@
 
       <nav id="step-list" class="step-list" aria-label="Script steps"></nav>
 
-      <section id="step-detail" class="step-detail" aria-live="polite"></section>
+      <p id="step-status" class="visually-hidden" aria-live="polite"></p>
+
+      <section id="step-detail" class="step-detail"></section>
 
       <section class="notes-panel" aria-labelledby="notes-title">
         <div class="section-heading">
