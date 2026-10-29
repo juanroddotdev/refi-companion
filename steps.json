@@ -5,6 +5,8 @@
     "title": "Intro",
     "subtitle": "Open the door. Build trust.",
     "goal": "Confirm who you are speaking with, set the purpose of the call, and earn permission to ask questions.",
+    "cue": "Hold numbers → Understand goal first",
+    "askCue": "What made you look at a refi right now?",
     "script": "Before I throw numbers at you, I want to make sure I understand what you are trying to accomplish and what would actually make this worth it for you.",
     "checklist": [
       "Confirm borrower name",
@@ -13,9 +15,20 @@
       "State the purpose of the call",
       "Ask permission to review their refinance goals"
     ],
+    "checkCues": [
+      "Name",
+      "Property",
+      "NMLS Disclosure",
+      "Call Purpose",
+      "Permission"
+    ],
     "prompts": [
       "What made you open to looking at a refinance right now?",
       "If this call goes well, what would you want to walk away knowing?"
+    ],
+    "promptCues": [
+      "Why refi now?",
+      "Ideal outcome today?"
     ]
   },
   {
@@ -24,6 +37,8 @@
     "title": "Discovery",
     "subtitle": "Ask. Listen. Understand.",
     "goal": "Collect the facts and the motivation before discussing loan structure.",
+    "cue": "Diagnose problem before quoting rate",
+    "askCue": "What happens if you keep the loan as-is?",
     "script": "The numbers only matter if they solve the right problem, so I am going to ask a few quick questions first.",
     "checklist": [
       "Identify primary goal",
@@ -32,11 +47,23 @@
       "Capture current payment",
       "Ask what happens if they do nothing"
     ],
+    "checkCues": [
+      "Goal",
+      "Balance",
+      "Rate",
+      "Payment",
+      "Cost of Inaction"
+    ],
     "prompts": [
       "Is your main priority lowering payment, shortening term, or accessing cash?",
       "What is your current monthly mortgage payment?",
       "Do you know your current rate and approximate balance?",
       "What would need to improve for this to feel worth moving forward?"
+    ],
+    "promptCues": [
+      "Payment, Term, or Cash?",
+      "What makes it worth it?",
+      "Cost of doing nothing?"
     ]
   },
   {
@@ -45,6 +72,8 @@
     "title": "Recap",
     "subtitle": "Clarify. Confirm. Align.",
     "goal": "Repeat the borrower goal back before presenting any solution.",
+    "cue": "Confirm [goal] → Target [benefit]",
+    "askCue": "\"Did I get that right?\" (Wait for Yes)",
     "script": "Just to make sure we are on the same page, your main priority is [goal], and ideally we want to get [payment, cash, term, or certainty outcome]. Did I get that right?",
     "checklist": [
       "Restate the borrower's goal",
@@ -52,9 +81,19 @@
       "Confirm any constraints",
       "Get verbal alignment before quoting numbers"
     ],
+    "checkCues": [
+      "Restate Goal",
+      "Target Outcome",
+      "Constraints",
+      "Got \"Yes\""
+    ],
     "prompts": [
       "What is the most important part of this for you?",
       "Is there anything I missed before I show you the option?"
+    ],
+    "promptCues": [
+      "#1 priority?",
+      "Anything missed?"
     ]
   },
   {
@@ -63,6 +102,8 @@
     "title": "Set the Stage",
     "subtitle": "Prepare their mind.",
     "goal": "Explain how to evaluate the offer before showing the approval details.",
+    "cue": "Don't judge by rate alone → Judge by Payment + Cost + Break-Even",
+    "askCue": "Does it solve why you took the call?",
     "script": "When we look at this, I do not want you judging it only by rate. I want us to look at payment impact, total cost, break-even, and whether it solves the reason you took this call.",
     "checklist": [
       "Remind them of their stated goal",
@@ -70,8 +111,17 @@
       "Mention market movement without making predictions",
       "Prepare them for payment, cost, and break-even discussion"
     ],
+    "checkCues": [
+      "Remind Goal",
+      "Set Criteria",
+      "Market Context",
+      "Prep Break-Even"
+    ],
     "prompts": [
       "The question is not just 'is the rate lower?' The question is whether the structure improves your situation enough to justify moving forward."
+    ],
+    "promptCues": [
+      "Frame: Structure > Rate"
     ]
   },
   {
@@ -80,6 +130,8 @@
     "title": "Mic Drop Close",
     "subtitle": "Own the value. Make it easy.",
     "goal": "Present the approval in a simple, confident way and ask for the decision.",
+    "cue": "Deliver [benefit] for [goal] → Ask & Pause",
+    "askCue": "\"Does this sound like the solution we discussed?\" (Mute & Wait)",
     "script": "Based on what you told me, this option does what we set out to do: it targets [goal], gives you [benefit], and keeps the decision grounded in the numbers we just reviewed. Does this sound like the solution we discussed?",
     "checklist": [
       "Present the proposed payment",
@@ -87,6 +139,13 @@
       "Explain closing costs or credits",
       "Explain break-even if applicable",
       "Ask a direct closing question, then pause"
+    ],
+    "checkCues": [
+      "New Payment",
+      "Rate & Term",
+      "Cost / Credit",
+      "Break-Even",
+      "Ask & Pause"
     ],
     "prompts": [
       "Monthly savings:",
@@ -101,31 +160,56 @@
     "title": "Rebuttal Hub",
     "subtitle": "Play defense. Remove doubt.",
     "goal": "Address hesitation without sounding defensive or dismissive.",
+    "cue": "Validate → Re-anchor to [goal] → Ask follow-up",
     "script": "Most objections are requests for more certainty. Slow down, validate the concern, and bring the conversation back to the borrower's original goal.",
     "rebuttals": [
       {
+        "id": "whats-the-rate",
+        "label": "Just tell me the rate",
+        "cue": "Need 60s for balance & goal → Quote real numbers, not teaser",
+        "askCue": "Main goal: drop payment or pull cash out?",
+        "response": "I will share the exact rate right now—I just need 60 seconds to confirm your balance and goal so I quote you a real, accurate structure instead of a bait-and-switch teaser.",
+        "followUp": "Are you mainly looking to drop the monthly payment or pull cash out?"
+      },
+      {
         "id": "rates-drop",
         "label": "Rates might drop",
+        "cue": "No one can time market → Capture [benefit] now, refi again later if rates drop",
+        "askCue": "Worth solving the monthly payment today while keeping flexibility?",
         "response": "That is a fair thought. Since no one can guarantee future rates, I would look at what this solves today and whether the savings or structure gives you enough benefit now.",
         "followUp": "If rates improved later and you still had flexibility, would solving the current payment issue now still be worth comparing?"
       },
       {
         "id": "costs-high",
         "label": "Closing costs are high",
+        "cue": "Judge by break-even vs. how long you'll keep the loan",
+        "askCue": "Want to see a lender-credit option with $0 out-of-pocket?",
         "response": "I agree costs matter. The way I would judge it is by the break-even and whether the monthly or long-term benefit outweighs the cost over the time you expect to keep the loan.",
         "followUp": "Would it help if I showed a lender-credit version with less out-of-pocket cost?"
       },
       {
         "id": "spouse",
         "label": "Need to ask spouse",
+        "cue": "100% agree → Let's build a 3-bullet summary together for them",
+        "askCue": "What is the #1 question they will ask you first?",
         "response": "Absolutely. This is a household decision. Let me help you make that conversation simple by summarizing the goal, the payment impact, the costs, and the next step.",
         "followUp": "What is the biggest question they will probably ask first?"
       },
       {
         "id": "reset-term",
         "label": "Do not reset term",
+        "cue": "Don't have to do 30yr → Compare custom 20yr/15yr or prepay principal",
+        "askCue": "Optimize for lowest monthly payment or lowest total interest?",
         "response": "That makes sense. Resetting the term is not the only way to structure this. We can compare a shorter term or payment-focused option and look at total interest.",
         "followUp": "Would you rather optimize for lowest payment or lowest total interest?"
+      },
+      {
+        "id": "shop-around",
+        "label": "Shopping other lenders",
+        "cue": "Smart to compare → Compare same-day locked Loan Estimates (watch hidden points)",
+        "askCue": "Do you have a locked Loan Estimate from them, or just a verbal quote?",
+        "response": "Smart move—you should compare. Just make sure you compare locked Loan Estimates on the same day with the same points vs. lender credit so you do not get burned by hidden fees.",
+        "followUp": "Have they given you an official locked Loan Estimate yet, or just a verbal quote?"
       }
     ]
   },
@@ -135,23 +219,36 @@
     "title": "Pivot Options",
     "subtitle": "Find another path to yes.",
     "goal": "Offer an alternate structure when the first option does not fit.",
+    "cue": "Don't end the call → Pivot the loan structure",
     "script": "If the first structure is close but not quite right, pivot the loan design instead of ending the conversation.",
     "options": [
       {
+        "id": "lender-credit",
         "title": "Lender Credit",
-        "description": "Trade a slightly higher rate for lower upfront cost when cash to close is the blocker."
+        "description": "Trade a slightly higher rate for lower upfront cost when cash to close is the blocker.",
+        "cue": "Bump rate slightly → Lender credit covers fees → Immediate break-even",
+        "talkTrack": "If keeping costs down is the priority, we can bump the rate slightly and use a lender credit to cover most or all of the closing costs—shortening your break-even right away."
       },
       {
+        "id": "shorter-term",
         "title": "Shorter Term",
-        "description": "Compare a 20-year or 15-year term when the borrower is worried about resetting the clock."
+        "description": "Compare a 20-year or 15-year term when the borrower is worried about resetting the clock.",
+        "cue": "Switch to 20yr / 15yr → Keep payoff clock intact + huge interest savings",
+        "talkTrack": "Instead of resetting back to 30 years, let's look at a 20- or 15-year custom term so you shave years off your mortgage and save tens of thousands in interest."
       },
       {
+        "id": "payment-focus",
         "title": "Payment Focus",
-        "description": "Optimize for monthly relief when cash flow is the primary goal."
+        "description": "Optimize for monthly relief when cash flow is the primary goal.",
+        "cue": "Max out monthly cash flow now → Prepay principal anytime with $0 penalty",
+        "talkTrack": "Let's stretch the term to maximize monthly cash-flow relief right now—you can always prepay principal whenever you want with zero penalty."
       },
       {
+        "id": "follow-up-plan",
         "title": "Follow-Up Plan",
-        "description": "Set a specific date and reason to reconnect if the borrower is not ready today."
+        "description": "Set a specific date and reason to reconnect if the borrower is not ready today.",
+        "cue": "Book 10-min call tomorrow + set rate-watch alert",
+        "talkTrack": "Let's lock in a 10-minute follow-up call for tomorrow after you've reviewed the numbers together, and I will set a rate-watch alert on your file in the meantime."
       }
     ]
   }
