@@ -773,7 +773,7 @@ function renderChecklist(step) {
                   title="${escapeHtml(item)}"
                 >
                   <span class="check-pill-icon" aria-hidden="true">${
-                    isChecked ? "✓" : "○"
+                    isChecked ? "[x]" : "[ ]"
                   }</span>
                   <span>${escapeHtml(shortLabel)}</span>
                 </button>
@@ -1217,7 +1217,7 @@ function handleDealFieldInput(inputEl) {
     pill.setAttribute("aria-pressed", isChecked ? "true" : "false");
     const icon = pill.querySelector(".check-pill-icon");
     if (icon) {
-      icon.textContent = isChecked ? "✓" : "○";
+      icon.textContent = isChecked ? "[x]" : "[ ]";
     }
   }
 
