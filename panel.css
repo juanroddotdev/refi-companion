@@ -134,15 +134,25 @@ p {
   margin-top: 0;
 }
 
-/* Top Action Links */
+/* Top Right Tools: Objections */
 .controls {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.primary-button,
-.secondary-button,
+.pad-icon {
+  flex-shrink: 0;
+  color: var(--pen-blue);
+}
+
+.pad-ink-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pen-blue);
+}
+
 .ghost-button {
   font-family: var(--font-mono);
   font-size: 0.7rem;
@@ -151,42 +161,17 @@ p {
   letter-spacing: 0.03em;
   padding: 1px 3px;
   border: 0;
-  border-bottom: 1.5px solid transparent;
+  border-bottom: 1.5px solid rgba(158, 42, 43, 0.45);
   background: transparent;
-  color: var(--ink-muted);
+  color: var(--pen-red);
   white-space: nowrap;
-}
-
-.primary-button {
-  color: var(--pen-blue);
-  border-bottom-color: var(--pen-blue);
-}
-
-.primary-button:hover {
-  background: var(--highlighter);
-  color: var(--ink);
-}
-
-.secondary-button:hover {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-}
-
-.secondary-button[aria-pressed="true"] {
-  color: var(--pen-red);
-  border-bottom-color: var(--pen-red);
-  background: rgba(158, 42, 43, 0.1);
-}
-
-.ghost-button {
-  color: var(--pen-red);
-  border-bottom-color: rgba(158, 42, 43, 0.4);
 }
 
 .ghost-button[aria-expanded="true"] {
   background: var(--pen-red);
   color: var(--paper);
   padding: 1px 5px;
+  border-bottom-color: var(--pen-red);
 }
 
 /* Index Tab Divider Rail (Steps 1–7) */
@@ -536,14 +521,34 @@ p {
 }
 
 /* Ruled Checklists & Ink Checkboxes */
+.checklist-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
 .section-sublabel {
-  margin: 0 0 4px;
+  margin: 0;
   font-family: var(--font-mono);
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--ink-muted);
+}
+
+.reset-checks-btn {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-decoration: underline;
+}
+
+.reset-checks-btn:hover {
+  color: var(--pen-red);
 }
 
 .cue-pill-row {
@@ -688,63 +693,46 @@ p {
   color: var(--pen-blue) !important;
 }
 
-/* Step Footer Nav — Flat Page Turn Links */
-.step-nav-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid var(--rule);
-}
-
-.prev-button,
-.next-button {
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 3px 2px;
-  border: 0;
-  border-bottom: 1.5px solid var(--ink);
-  background: transparent;
-  color: var(--ink);
-}
-
-.prev-button {
-  color: var(--ink-muted);
-  border-bottom-color: var(--rule-strong);
-}
-
-.next-button {
-  color: var(--pen-blue);
-  border-bottom-color: var(--pen-blue);
-}
-
-.next-button:hover:not(:disabled),
-.prev-button:hover:not(:disabled) {
-  background: var(--highlighter);
-  color: var(--ink);
-}
-
-.next-button:disabled,
-.prev-button:disabled {
-  border-bottom-color: transparent;
-  color: var(--ink-faint);
-  cursor: default;
-}
-
-/* Bottom Ruled Legal-Pad Scratchpad */
+/* Bottom Legal-Pad Scratchpad Dock (Collapsed Tab -> Expanded Resizable Drawer) */
 .notes-panel {
   flex-shrink: 0;
   background: var(--paper-tint);
-  border-top: 2px solid var(--ink);
-  padding: 6px 12px 8px;
+  border-top: 1.5px solid var(--ink);
+  padding: 5px 12px;
   display: flex;
   flex-direction: column;
+}
+
+.notes-panel[data-open="true"] {
+  height: var(--pad-height, 175px);
+  min-height: 96px;
+  max-height: 68vh;
+  border-top: 2px solid var(--ink);
+  padding: 0 12px 8px;
   gap: 4px;
+}
+
+.pad-resize-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 12px;
+  margin: 0 -12px;
+  cursor: ns-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+.pad-resize-handle:hover .pad-grip-lines,
+.pad-resize-handle:focus-visible .pad-grip-lines {
+  border-color: var(--ink);
+}
+
+.pad-grip-lines {
+  width: 34px;
+  height: 4px;
+  border-top: 1.5px solid var(--ink-faint);
+  border-bottom: 1.5px solid var(--ink-faint);
 }
 
 .notes-header {
@@ -754,6 +742,11 @@ p {
   gap: 8px;
 }
 
+.notes-panel[data-open="true"] .notes-header {
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--rule);
+}
+
 .notes-title-group {
   display: flex;
   align-items: center;
@@ -761,36 +754,92 @@ p {
   min-width: 0;
 }
 
-.notes-title-group h2 {
+.scratchpad-title-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  padding: 2px 6px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper);
+  box-shadow: 1.5px 1.5px 0 var(--ink);
+}
+
+.scratchpad-title-btn:hover {
+  background: var(--highlighter);
+}
+
+.scratchpad-title-btn[aria-expanded="true"] {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  padding: 1px 0;
+}
+
+.scratchpad-title-btn[aria-expanded="true"]:hover {
+  color: var(--pen-blue);
+}
+
+.pad-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pad-action-btn {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--ink-muted);
+  border-bottom: 1.5px solid transparent;
+  padding: 1px 2px;
 }
 
-.notes-collapse-btn {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--ink-muted);
-  text-decoration: underline;
+.pad-action-btn:hover {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.pad-action-primary {
+  color: var(--pen-blue);
+  border-bottom-color: var(--pen-blue);
+}
+
+.pad-action-primary:hover {
+  background: var(--highlighter);
+  color: var(--ink);
+}
+
+.pad-action-btn[aria-pressed="true"] {
+  color: var(--pen-red);
+  border-bottom-color: var(--pen-red);
+  background: rgba(158, 42, 43, 0.12);
 }
 
 .notes-body {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .note-pane {
-  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
   margin: 0;
 }
 
 /* Lined Notepad Textarea */
 textarea {
   width: 100%;
+  height: 100%;
   resize: none;
   border: 0;
   background-color: transparent;
@@ -801,6 +850,7 @@ textarea {
     var(--rule) 21px,
     var(--rule) 22px
   );
+  background-attachment: local;
   color: var(--pen-blue);
   padding: 2px 0;
   font-family: var(--font-mono);

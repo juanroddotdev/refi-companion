@@ -29,12 +29,17 @@ const GAP_PITCH_CHOICES = [
   { value: "included", label: "Already Included GAP" }
 ];
 
+const DEFAULT_PAD_HEIGHT = 180;
+const MIN_PAD_HEIGHT = 96;
+const MAX_PAD_HEIGHT = 520;
+
 const defaultState = {
   viewMode: "live",
   activeStepId: "",
   checkedItems: {},
   selectedRebuttalId: "",
-  notesCollapsed: false,
+  padOpen: false,
+  padHeight: DEFAULT_PAD_HEIGHT,
   branches: {
     horizon: "keep",
     dealerVsc: "bought",
@@ -51,7 +56,8 @@ const LEGACY_KEYS = [
   "deal",
   "notes",
   "activeNoteTab",
-  "selectedPivotId"
+  "selectedPivotId",
+  "notesCollapsed"
 ];
 const LEGACY_STEP_IDS = ["set-stage", "pivot"];
 const SAVE_DELAY_MS = 250;
@@ -60,16 +66,21 @@ const CLEAR_CONFIRM_MS = 5000;
 const elements = {
   modeLive: document.querySelector("#mode-live"),
   modePractice: document.querySelector("#mode-practice"),
-  newCall: document.querySelector("#new-call"),
-  copyNotes: document.querySelector("#copy-notes"),
-  copyStatus: document.querySelector("#copy-status"),
+  togglePadBtn: document.querySelector("#toggle-pad-btn"),
+  padInkDot: document.querySelector("#pad-ink-dot"),
   quickObjectionToggle: document.querySelector("#quick-objection-toggle"),
   quickObjectionDrawer: document.querySelector("#quick-objection-drawer"),
   stepList: document.querySelector("#step-list"),
   stepDetail: document.querySelector("#step-detail"),
   stepStatus: document.querySelector("#step-status"),
-  toggleNotes: document.querySelector("#toggle-notes"),
+  notesDock: document.querySelector("#notes-dock"),
+  padResizeHandle: document.querySelector("#pad-resize-handle"),
+  padActions: document.querySelector("#pad-actions"),
   notesBody: document.querySelector("#notes-body"),
+  copyNotes: document.querySelector("#copy-notes"),
+  newCall: document.querySelector("#new-call"),
+  closePadBtn: document.querySelector("#close-pad-btn"),
+  copyStatus: document.querySelector("#copy-status"),
   callNote: document.querySelector("#call-note")
 };
 
@@ -90,6 +101,18 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function clampPadHeight(height) {
+  const num = Number(height);
+  if (!Number.isFinite(num)) {
+    return DEFAULT_PAD_HEIGHT;
+  }
+  const viewportMax = Math.max(
+    MIN_PAD_HEIGHT,
+    Math.min(MAX_PAD_HEIGHT, Math.round(window.innerHeight * 0.65))
+  );
+  return Math.max(MIN_PAD_HEIGHT, Math.min(viewportMax, Math.round(num)));
 }
 
 function highlightBracketTokens(rawText) {
@@ -199,7 +222,8 @@ function normalizeStoredState(storedState) {
       typeof storedState?.selectedRebuttalId === "string"
         ? storedState.selectedRebuttalId
         : "",
-    notesCollapsed: Boolean(storedState?.notesCollapsed),
+    padOpen: Boolean(storedState?.padOpen),
+    padHeight: clampPadHeight(storedState?.padHeight),
     branches: normalizeBranches(storedState?.branches, storedState?.deal),
     scratchpad: normalizeScratchpad(storedState)
   };
@@ -265,6 +289,12 @@ function getCheckedItems(stepId) {
   return items.filter((item) => typeof item === "string");
 }
 
+function hasAnyChecks() {
+  return Object.values(state.checkedItems).some(
+    (items) => Array.isArray(items) && items.length > 0
+  );
+}
+
 function isStepComplete(step) {
   if (!step.checklist?.length) {
     return false;
@@ -272,14 +302,6 @@ function isStepComplete(step) {
 
   const checked = new Set(getCheckedItems(step.id));
   return step.checklist.every((item) => checked.has(item));
-}
-
-function isFirstStep(step) {
-  return steps[0]?.id === step.id;
-}
-
-function isLastStep(step) {
-  return steps.at(-1)?.id === step.id;
 }
 
 function findSelectedRebuttal() {
@@ -333,7 +355,6 @@ function renderScriptOrCueCard({
   const live = isLiveMode();
   const isPeekOpen = expandedPeeks.has(peekKey);
 
-  // Practice Mode: Full Verbatim Script
   if (!live) {
     return `
       <article class="script-card script-card-practice">
@@ -354,7 +375,6 @@ function renderScriptOrCueCard({
     `;
   }
 
-  // Live Mode: Short Glanceable Cue + Optional Peek
   const askLine = liveAskText || followUpText;
 
   return `
@@ -591,11 +611,17 @@ function renderChecklist(step) {
   }
 
   const checkedItems = getCheckedItems(step.id);
+  const resetLink = hasAnyChecks()
+    ? `<button type="button" class="reset-checks-btn" data-reset-checks title="Uncheck all steps for next call">Reset checks</button>`
+    : "";
 
   if (isLiveMode()) {
     return `
       <div>
-        <p class="section-sublabel">Step Check-Offs</p>
+        <div class="checklist-header-row">
+          <p class="section-sublabel">Step Check-Offs</p>
+          ${resetLink}
+        </div>
         <div class="cue-pill-row" role="group" aria-label="${escapeHtml(step.title)} quick checks">
           ${step.checklist
             .map((item, index) => {
@@ -624,7 +650,10 @@ function renderChecklist(step) {
 
   return `
     <div>
-      <p class="section-sublabel">Step Checklist</p>
+      <div class="checklist-header-row">
+        <p class="section-sublabel">Step Checklist</p>
+        ${resetLink}
+      </div>
       <ul class="checklist" aria-label="${escapeHtml(step.title)} checklist">
         ${step.checklist
           .map(
@@ -707,8 +736,6 @@ function renderStepDetail() {
     return;
   }
 
-  const onFirstStep = isFirstStep(step);
-  const onLastStep = isLastStep(step);
   const live = isLiveMode();
   const showTopCard = Boolean(step.script) && !(live && step.id === "rebuttal");
 
@@ -740,35 +767,21 @@ function renderStepDetail() {
     ${renderPrompts(step)}
     ${renderRebuttals(step)}
     ${renderChecklist(step)}
-    <div class="step-nav-footer">
-      <button
-        class="prev-button"
-        type="button"
-        title="Previous Step (Alt+Left)"
-        ${onFirstStep ? "disabled" : "data-prev-step"}
-      >
-        ← Back
-      </button>
-      <button
-        class="next-button"
-        type="button"
-        title="Next Step (Alt+Right)"
-        ${onLastStep ? "disabled" : "data-next-step"}
-      >
-        ${onLastStep ? "End of Script" : "Next Step →"}
-      </button>
-    </div>
   `;
 }
 
 function renderNotes() {
+  const isOpen = Boolean(state.padOpen);
+  const hasInk = Boolean(state.scratchpad?.trim());
+
+  elements.notesDock.dataset.open = isOpen ? "true" : "false";
+  elements.notesDock.style.setProperty("--pad-height", `${clampPadHeight(state.padHeight)}px`);
+  elements.padResizeHandle.hidden = !isOpen;
+  elements.padActions.hidden = !isOpen;
+  elements.notesBody.hidden = !isOpen;
+  elements.togglePadBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  elements.padInkDot.hidden = !hasInk;
   elements.callNote.value = state.scratchpad;
-  elements.notesBody.hidden = Boolean(state.notesCollapsed);
-  elements.toggleNotes.setAttribute(
-    "aria-expanded",
-    state.notesCollapsed ? "false" : "true"
-  );
-  elements.toggleNotes.textContent = state.notesCollapsed ? "Expand" : "Hide";
 }
 
 function announceStep() {
@@ -809,6 +822,15 @@ async function setViewMode(mode) {
   expandedPeeks.clear();
   await flushState({ viewMode: nextMode });
   renderApp();
+}
+
+async function togglePad(forceOpen) {
+  const nextOpen = typeof forceOpen === "boolean" ? forceOpen : !state.padOpen;
+  await flushState({ padOpen: nextOpen });
+  renderNotes();
+  if (nextOpen) {
+    elements.callNote.focus();
+  }
 }
 
 function togglePeek(peekKey) {
@@ -871,6 +893,12 @@ async function toggleChecklistIndex(step, index, forceChecked) {
   renderStepDetail();
 }
 
+async function resetAllChecks() {
+  await flushState({ checkedItems: {} });
+  renderStepList();
+  renderStepDetail();
+}
+
 async function selectBranchChoice(field, value) {
   if (!field || !value) {
     return;
@@ -891,6 +919,7 @@ function rememberNotes() {
     ...state,
     scratchpad: elements.callNote.value
   };
+  elements.padInkDot.hidden = !Boolean(state.scratchpad.trim());
 }
 
 function updateNotes() {
@@ -950,7 +979,7 @@ async function copyNotes() {
 
 function armClearCall() {
   clearArmed = true;
-  elements.newCall.textContent = "Clear?";
+  elements.newCall.textContent = "Confirm Clear?";
   elements.newCall.setAttribute("aria-pressed", "true");
   clearTimeout(clearConfirmTimer);
   clearConfirmTimer = setTimeout(disarmClearCall, CLEAR_CONFIRM_MS);
@@ -960,7 +989,7 @@ function disarmClearCall() {
   clearArmed = false;
   clearTimeout(clearConfirmTimer);
   clearConfirmTimer = null;
-  elements.newCall.textContent = "New";
+  elements.newCall.textContent = "Clear Call";
   elements.newCall.removeAttribute("aria-pressed");
 }
 
@@ -976,6 +1005,8 @@ async function resetCall() {
   await flushState({
     ...structuredClone(defaultState),
     viewMode: state.viewMode,
+    padOpen: state.padOpen,
+    padHeight: state.padHeight,
     activeStepId: steps[0]?.id || ""
   });
   renderApp({ announce: true, focusStep: true });
@@ -992,15 +1023,63 @@ function toggleQuickObjectionDrawer() {
   renderQuickObjectionDrawer();
 }
 
+function bindResizeHandle() {
+  let startY = 0;
+  let startHeight = DEFAULT_PAD_HEIGHT;
+  let dragging = false;
+
+  const onPointerMove = (event) => {
+    if (!dragging) {
+      return;
+    }
+    const deltaY = startY - event.clientY;
+    const nextHeight = clampPadHeight(startHeight + deltaY);
+    state = { ...state, padHeight: nextHeight };
+    elements.notesDock.style.setProperty("--pad-height", `${nextHeight}px`);
+  };
+
+  const onPointerUp = () => {
+    if (!dragging) {
+      return;
+    }
+    dragging = false;
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    schedulePersist();
+  };
+
+  elements.padResizeHandle.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    dragging = true;
+    startY = event.clientY;
+    startHeight = clampPadHeight(state.padHeight);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+  });
+
+  elements.padResizeHandle.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      event.preventDefault();
+      const delta = event.key === "ArrowUp" ? 22 : -22;
+      const nextHeight = clampPadHeight(state.padHeight + delta);
+      flushState({ padHeight: nextHeight }).then(() => renderNotes());
+    }
+  });
+}
+
 function bindEvents() {
   elements.modeLive.addEventListener("click", () => setViewMode("live"));
   elements.modePractice.addEventListener("click", () => setViewMode("practice"));
+  elements.togglePadBtn.addEventListener("click", () => togglePad());
+  elements.closePadBtn.addEventListener("click", () => togglePad(false));
   elements.newCall.addEventListener("click", resetCall);
   elements.copyNotes.addEventListener("click", copyNotes);
   elements.quickObjectionToggle.addEventListener("click", () => {
     disarmClearCall();
     toggleQuickObjectionDrawer();
   });
+
+  bindResizeHandle();
 
   elements.quickObjectionDrawer.addEventListener("click", (event) => {
     if (event.target.closest("[data-close-drawer]")) {
@@ -1019,10 +1098,6 @@ function bindEvents() {
     if (rebuttalButton) {
       selectRebuttal(rebuttalButton.dataset.rebuttalId);
     }
-  });
-
-  elements.toggleNotes.addEventListener("click", () => {
-    flushState({ notesCollapsed: !state.notesCollapsed }).then(() => renderNotes());
   });
 
   elements.callNote.addEventListener("input", updateNotes);
@@ -1049,6 +1124,12 @@ function bindEvents() {
       return;
     }
 
+    if (event.target.closest("[data-reset-checks]")) {
+      disarmClearCall();
+      resetAllChecks();
+      return;
+    }
+
     const checkPill = event.target.closest("[data-check-pill-index]");
     if (checkPill) {
       disarmClearCall();
@@ -1070,18 +1151,6 @@ function bindEvents() {
     if (rebuttalButton) {
       disarmClearCall();
       selectRebuttal(rebuttalButton.dataset.rebuttalId);
-      return;
-    }
-
-    if (event.target.closest("[data-prev-step]")) {
-      disarmClearCall();
-      goToAdjacentStep(-1);
-      return;
-    }
-
-    if (event.target.closest("[data-next-step]")) {
-      disarmClearCall();
-      goToAdjacentStep(1);
     }
   });
 
@@ -1130,6 +1199,12 @@ function bindEvents() {
     if (event.altKey && event.key.toLowerCase() === "o") {
       event.preventDefault();
       toggleQuickObjectionDrawer();
+      return;
+    }
+
+    if (event.altKey && event.key.toLowerCase() === "n") {
+      event.preventDefault();
+      togglePad();
       return;
     }
 
