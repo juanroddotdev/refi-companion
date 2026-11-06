@@ -618,6 +618,8 @@ function renderStepList() {
 function renderScriptOrCueCard({
   peekKey,
   label,
+  liveCueText,
+  liveAskText,
   cueText,
   askCueText,
   fullScriptText,
@@ -626,8 +628,10 @@ function renderScriptOrCueCard({
 }) {
   const live = isLiveMode();
   const isPeekOpen = expandedPeeks.has(peekKey);
+  const headlineText = live ? liveCueText || cueText : cueText || fullScriptText;
+  const askLine = live ? liveAskText || askCueText : askCueText || followUpText;
 
-  if (!live || !cueText) {
+  if (!headlineText) {
     return `
       <article class="script-card">
         <div class="script-card-top">
@@ -647,10 +651,8 @@ function renderScriptOrCueCard({
     `;
   }
 
-  const askLine = askCueText || followUpText;
-
   return `
-    <article class="script-card">
+    <article class="script-card ${live ? "script-card-live" : "script-card-practice"}">
       <div class="script-card-top">
         <span class="script-card-label">${escapeHtml(label)}</span>
         ${
@@ -667,10 +669,9 @@ function renderScriptOrCueCard({
             : ""
         }
       </div>
-      <p class="cue-headline" ${idAttr ? `id="${escapeHtml(idAttr)}"` : ""}>${interpolateTalkTrack(
-        cueText,
-        { short: true }
-      )}</p>
+      <p class="cue-headline ${live ? "cue-headline-live" : ""}" ${
+        idAttr ? `id="${escapeHtml(idAttr)}"` : ""
+      }>${interpolateTalkTrack(headlineText, { short: true })}</p>
       ${
         askLine
           ? `<p class="cue-ask"><span class="cue-ask-badge">Ask</span> <span>${interpolateTalkTrack(
@@ -681,7 +682,13 @@ function renderScriptOrCueCard({
       }
       ${
         isPeekOpen && fullScriptText
-          ? `<div class="peek-script-box">${interpolateTalkTrack(fullScriptText)}</div>`
+          ? `<div class="peek-script-box">${interpolateTalkTrack(fullScriptText)}${
+              followUpText && !live
+                ? `<strong class="followup-heading">Follow-up question:</strong><p class="full-script-text">${interpolateTalkTrack(
+                    followUpText
+                  )}</p>`
+                : ""
+            }</div>`
           : ""
       }
     </article>
@@ -772,6 +779,8 @@ function renderQuickObjectionDrawer() {
     ${renderScriptOrCueCard({
       peekKey: `drawer-${selected.id}`,
       label: `Objection: ${selected.label}`,
+      liveCueText: selected.liveCue,
+      liveAskText: selected.liveAsk,
       cueText: selected.cue,
       askCueText: selected.askCue,
       fullScriptText: selected.response,
@@ -831,17 +840,23 @@ function renderRecapWidget() {
   const recapStep = steps.find((step) => step.id === "recap");
   const branchKey = getVscBranchKey();
   const branch = recapStep?.stageScripts?.[branchKey];
+  const showSelectors = !isLiveMode() || !branch;
 
   return `
     <section class="inline-widget" aria-label="Recap and set the stage">
       ${renderUnderlineField("Credit Union / Lender", "lenderName", "FourLeaf / Credit Union")}
-      ${renderChoiceRow("Horizon", "horizon", HORIZON_CHOICES)}
-      ${renderChoiceRow("Dealer VSC", "dealerVsc", VSC_CHOICES)}
+      ${
+        showSelectors
+          ? `${renderChoiceRow("Horizon", "horizon", HORIZON_CHOICES)}
+             ${renderChoiceRow("Dealer VSC", "dealerVsc", VSC_CHOICES)}`
+          : ""
+      }
       ${
         branch
           ? renderScriptOrCueCard({
               peekKey: `stage-${branchKey}`,
               label: `Set the Stage — ${branch.label}`,
+              liveCueText: branch.liveCue,
               cueText: branch.cue,
               fullScriptText: branch.script
             })
@@ -898,6 +913,20 @@ function renderAioaStrip(step) {
     return "";
   }
 
+  if (isLiveMode()) {
+    return `
+      <div class="aioa-compact-bar" aria-label="AIOA Framework">
+        <span><strong>A</strong>gree</span>
+        <span>→</span>
+        <span><strong>I</strong>solate</span>
+        <span>→</span>
+        <span><strong>O</strong>vercome</span>
+        <span>→</span>
+        <span><strong>A</strong>sk</span>
+      </div>
+    `;
+  }
+
   return `
     <section class="aioa-ledger" aria-label="AIOA Framework">
       <p class="widget-label">AIOA Framework</p>
@@ -908,7 +937,6 @@ function renderAioaStrip(step) {
               <span class="aioa-letter">${escapeHtml(row.letter)}</span>
               <div>
                 <strong>${escapeHtml(row.label)}</strong>
-                ${isLiveMode() ? "" : `<p>${escapeHtml(row.purpose)}</p>`}
                 <p class="aioa-example">${escapeHtml(row.example)}</p>
               </div>
             </div>
@@ -946,6 +974,7 @@ function renderDocWalkWidget() {
           ? renderScriptOrCueCard({
               peekKey: "ssn-fourleaf",
               label: ssnScript.label,
+              liveCueText: ssnScript.liveCue,
               cueText: ssnScript.cue,
               fullScriptText: ssnScript.script
             })
@@ -957,6 +986,7 @@ function renderDocWalkWidget() {
           ? renderScriptOrCueCard({
               peekKey: `notary-${state.deal.notaryMode}`,
               label: `Docs — ${notaryScript.label}`,
+              liveCueText: notaryScript.liveCue,
               cueText: notaryScript.cue,
               fullScriptText: notaryScript.script
             })
@@ -1005,6 +1035,7 @@ function renderQaWidget() {
           ? renderScriptOrCueCard({
               peekKey: `gap-${state.deal.gapPitchMode}`,
               label: pitch.label,
+              liveCueText: pitch.liveCue,
               cueText: pitch.cue,
               askCueText:
                 state.deal.gapPitchMode === "backend"
@@ -1020,6 +1051,7 @@ function renderQaWidget() {
           ? renderScriptOrCueCard({
               peekKey: `gap-refund-${state.deal.gapRefundMode}`,
               label: refund.label,
+              liveCueText: refund.liveCue,
               cueText: refund.cue,
               fullScriptText: refund.script
             })
@@ -1041,56 +1073,30 @@ function renderChecklist(step) {
 
   const checkedItems = getCheckedItems(step.id);
 
-  if (isLiveMode()) {
-    return `
-      <div>
-        <div class="cue-pill-row" role="group" aria-label="${escapeHtml(step.title)} quick checks">
-          ${step.checklist
-            .map((item, index) => {
-              const shortLabel = step.checkCues?.[index] || item;
-              const isChecked = checkedItems.includes(item);
-              return `
-                <button
-                  type="button"
-                  class="check-pill"
-                  data-check-pill-index="${index}"
-                  aria-pressed="${isChecked ? "true" : "false"}"
-                  title="${escapeHtml(item)}"
-                >
-                  <span class="check-pill-icon" aria-hidden="true">${
-                    isChecked ? "[x]" : "[ ]"
-                  }</span>
-                  <span>${escapeHtml(shortLabel)}</span>
-                </button>
-              `;
-            })
-            .join("")}
-        </div>
-      </div>
-    `;
-  }
-
   return `
     <div>
-      <p class="section-sublabel">Step Checklist</p>
-      <ul class="checklist" aria-label="${escapeHtml(step.title)} checklist">
+      <div class="cue-pill-row" role="group" aria-label="${escapeHtml(step.title)} quick checks">
         ${step.checklist
-          .map(
-            (item, index) => `
-              <li>
-                <label>
-                  <input
-                    type="checkbox"
-                    data-check-index="${index}"
-                    ${checkedItems.includes(item) ? "checked" : ""}
-                  />
-                  <span>${escapeHtml(item)}</span>
-                </label>
-              </li>
-            `
-          )
+          .map((item, index) => {
+            const shortLabel = step.checkCues?.[index] || item;
+            const isChecked = checkedItems.includes(item);
+            return `
+              <button
+                type="button"
+                class="check-pill"
+                data-check-pill-index="${index}"
+                aria-pressed="${isChecked ? "true" : "false"}"
+                title="${escapeHtml(item)}"
+              >
+                <span class="check-pill-icon" aria-hidden="true">${
+                  isChecked ? "[x]" : "[ ]"
+                }</span>
+                <span>${escapeHtml(shortLabel)}</span>
+              </button>
+            `;
+          })
           .join("")}
-      </ul>
+      </div>
     </div>
   `;
 }
@@ -1140,6 +1146,8 @@ function renderRebuttals(step) {
     ${renderScriptOrCueCard({
       peekKey: `rebuttal-${selected.id}`,
       label: selected.label,
+      liveCueText: selected.liveCue,
+      liveAskText: selected.liveAsk,
       cueText: selected.cue,
       askCueText: selected.askCue,
       fullScriptText: selected.response,
@@ -1158,6 +1166,7 @@ function renderStepDetail() {
   const onFirstStep = isFirstStep(step);
   const onLastStep = isLastStep(step);
   const live = isLiveMode();
+  const showTopCard = Boolean(step.script) && !(live && step.id === "rebuttal");
 
   elements.stepDetail.innerHTML = `
     <div class="step-header-bar">
@@ -1167,12 +1176,13 @@ function renderStepDetail() {
       </div>
       <p class="step-subtitle">${escapeHtml(step.subtitle)}</p>
     </div>
-    ${!live ? `<p class="step-goal">${escapeHtml(step.goal)}</p>` : ""}
     ${
-      step.script
+      showTopCard
         ? renderScriptOrCueCard({
             peekKey: `step-${step.id}`,
-            label: live ? "Live Cue" : "Talk Track",
+            label: live ? "Quick Cue" : "Live Cue",
+            liveCueText: step.liveCue,
+            liveAskText: step.liveAsk,
             cueText: step.cue,
             askCueText: step.askCue,
             fullScriptText: step.script,
@@ -1186,7 +1196,6 @@ function renderStepDetail() {
     ${step.id === "close" ? renderCloseWidget() : ""}
     ${step.id === "docwalk" ? renderDocWalkWidget() : ""}
     ${step.id === "qa" ? renderQaWidget() : ""}
-    ${renderPrompts(step)}
     ${renderRebuttals(step)}
     ${renderChecklist(step)}
     <div class="step-nav-footer">
@@ -1374,10 +1383,9 @@ function refreshActiveTalkTrackInPlace() {
     return;
   }
 
-  if (isLiveMode() && step.cue) {
-    talkTrackEl.innerHTML = interpolateTalkTrack(step.cue, { short: true });
-  } else if (step.script) {
-    talkTrackEl.innerHTML = interpolateTalkTrack(step.script);
+  const text = isLiveMode() ? step.liveCue || step.cue : step.cue || step.script;
+  if (text) {
+    talkTrackEl.innerHTML = interpolateTalkTrack(text, { short: true });
   }
 }
 

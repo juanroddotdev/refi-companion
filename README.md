@@ -24,9 +24,9 @@ Short titles stay on the rail; Gravity Lending section titles show as subtitles 
 
 ## Live Mode vs. Practice Mode (`Alt+M`)
 
-- **Live Mode (Default for Active Calls):** Strips out paragraphs and redundant checklists so you never have to read prose while talking. Displays a bold **Live Cue**, a single **ASK** line, compact check pills, and the interactive inputs.
-- **Inline `"Peek script"` Button:** Click **Peek script** on any step, objection, VSC branch, notary path, or GAP pitch to expand the full word-for-word sentence without leaving Live Mode.
-- **Practice Mode (Training & Roleplay):** Displays full step goals, verbatim Gravity Lending talk tracks, question lists, and checklists.
+- **Live Mode (Default for Active Calls):** Ultra-condensed 2–4 word monospace trigger cues (`liveCue`), 2–3 word `ASK` prompts (`liveAsk`), a single-line AIOA bar (`Agree → Isolate → Overcome → Ask`), and zero redundant selectors once a branch is chosen—built for split-second glancing while talking.
+- **Practice Mode:** Displays the fuller guided cue view (`cue` & `askCue`), the 4-row AIOA example table, and compact `[ ]` / `[x]` check pills.
+- **Inline `"Peek script"` Button:** Available in **both** Live and Practice modes to expand the verbatim word-for-word Gravity Lending script on any card.
 
 ## Key Features for Live Calls
 
