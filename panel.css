@@ -342,9 +342,9 @@ p {
 
 .step-header-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 2px 8px;
   padding-bottom: 6px;
   border-bottom: 1.5px solid var(--ink);
 }
@@ -353,6 +353,10 @@ p {
   display: flex;
   align-items: baseline;
   gap: 6px;
+}
+
+.step-header-bar .step-subtitle {
+  width: 100%;
 }
 
 .step-kicker {
@@ -944,6 +948,87 @@ button:focus-visible {
 
 .copy-status-error {
   color: var(--pen-red);
+}
+
+.choice-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
+}
+
+.aioa-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid var(--ink);
+  border-left: 1px solid var(--ink);
+}
+
+.aioa-ledger .widget-label {
+  padding: 6px 8px 4px;
+  border-right: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.aioa-row {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 8px;
+  padding: 6px 8px;
+  border-right: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.aioa-letter {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--pen-red);
+  line-height: 1.2;
+}
+
+.aioa-row strong {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.aioa-row p {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
+.aioa-example {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--pen-blue) !important;
+}
+
+.verify-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--rule-strong);
+}
+
+.ink-warning {
+  margin: 0;
+  padding: 4px 0 6px;
+  border-bottom: 1.5px solid var(--pen-red);
+  color: var(--pen-red);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+#annual-income-readout {
+  border-bottom: 1.5px solid var(--ink);
+  padding: 3px 2px;
+  color: var(--pen-blue);
 }
 
 .visually-hidden {

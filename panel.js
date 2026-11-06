@@ -1,38 +1,99 @@
 const GOAL_CHIPS = [
   "Lower Payment",
-  "Cash-Out / Debt Consolidation",
-  "Shorten Term",
-  "Remove MI / Switch to Fixed"
+  "Lower Rate / Save Interest",
+  "Skip Payment / Cash Relief",
+  "Replace Dealer Warranty"
 ];
 
 const SHORT_STEP_LABELS = {
   intro: "Intro",
   discovery: "Discov",
   recap: "Recap",
-  "set-stage": "Stage",
   close: "Close",
-  rebuttal: "Object",
-  pivot: "Pivot"
+  rebuttal: "Rebut",
+  docwalk: "Docs",
+  qa: "QA"
 };
+
+const HORIZON_CHOICES = [
+  { value: "keep", label: "Keeping Long-Term" },
+  { value: "trade", label: "Trading in Few Yrs" }
+];
+
+const VSC_CHOICES = [
+  { value: "bought", label: "Bought Dealer VSC" },
+  { value: "none", label: "No Dealer VSC" }
+];
+
+const MOD_CHOICES = [
+  { value: "none", label: "Stock" },
+  { value: "modified", label: "Lift / Aftermarket" }
+];
+
+const OPTION_CHOICES = [
+  { value: "option1", label: "Option 1 w/ Protection" },
+  { value: "option2", label: "Option 2 No VSC" }
+];
+
+const SSN_CHOICES = [
+  { value: "last4", label: "Last 4 SSN" },
+  { value: "fourleaf", label: "FourLeaf Full SSN" }
+];
+
+const NOTARY_CHOICES = [
+  { value: "standard", label: "Standard / Lounge" },
+  { value: "proof", label: "Proof Online ($30)" },
+  { value: "longpen", label: "LongPen (TX)" }
+];
+
+const GAP_PITCH_CHOICES = [
+  { value: "backend", label: "Back-End Pitch" },
+  { value: "included", label: "Already Included" }
+];
+
+const GAP_REFUND_CHOICES = [
+  { value: "refundable", label: "Refundable Pro-Rated" },
+  { value: "sixty-day", label: "60-Day Opt-Out" }
+];
 
 const defaultState = {
   viewMode: "live",
   activeStepId: "",
   checkedItems: {},
   selectedRebuttalId: "",
-  selectedPivotId: "",
   activeNoteTab: "goal",
   notesCollapsed: false,
   deal: {
-    primaryGoal: "",
-    currentBalance: "",
-    currentRate: "",
+    customerName: "",
+    vehicle: "",
+    currentLender: "",
     currentPayment: "",
+    state: "",
+    primaryGoal: "",
+    paymentPreference: "",
+    otherObligations: "",
+    mileage: "",
+    horizon: "",
+    dealerVsc: "",
+    mods: "",
+    lenderName: "",
+    proposedTerm: "",
     proposedRate: "",
-    proposedTerm: "30 yr",
-    proposedPayment: "",
-    netCost: "",
-    cashOut: ""
+    option1Payment: "",
+    option2Payment: "",
+    selectedOption: "",
+    monthlyIncome: "",
+    ssnMode: "last4",
+    notaryMode: "standard",
+    apr: "",
+    vscCost: "",
+    otherProductCost: "",
+    titleFee: "",
+    lenderFee: "",
+    gapCost: "",
+    gapMonthlyPayment: "",
+    gapPitchMode: "backend",
+    gapRefundMode: "refundable"
   },
   notes: {
     goal: "",
@@ -42,6 +103,7 @@ const defaultState = {
 };
 
 const LEGACY_TIMER_KEYS = ["timerRunning", "timerStartedAt", "elapsedBeforeStart"];
+const LEGACY_STEP_IDS = ["set-stage", "pivot"];
 const SAVE_DELAY_MS = 250;
 const CLEAR_CONFIRM_MS = 5000;
 
@@ -106,49 +168,71 @@ function formatCurrency(amount) {
   }).format(Math.round(amount));
 }
 
+function formatMoneyToken(value, fallback) {
+  const amount = parseNumber(value);
+  if (Number.isFinite(amount)) {
+    return formatCurrency(amount);
+  }
+  return value || fallback;
+}
+
+function getVscBranchKey(deal = state.deal) {
+  if (deal.horizon === "keep" && deal.dealerVsc === "bought") {
+    return "keep-bought";
+  }
+  if (deal.horizon === "trade" && deal.dealerVsc === "bought") {
+    return "trade-bought";
+  }
+  if (deal.horizon === "keep" && deal.dealerVsc === "none") {
+    return "keep-nobought";
+  }
+  if (deal.horizon === "trade" && deal.dealerVsc === "none") {
+    return "trade-nobought";
+  }
+  return "";
+}
+
+function getVscBranchLabel(deal = state.deal) {
+  const recapStep = steps.find((step) => step.id === "recap");
+  const key = getVscBranchKey(deal);
+  return recapStep?.stageScripts?.[key]?.label || "Not set";
+}
+
+function getSelectedPayment(deal = state.deal) {
+  if (deal.selectedOption === "option1") {
+    return deal.option1Payment;
+  }
+  if (deal.selectedOption === "option2") {
+    return deal.option2Payment;
+  }
+  return "";
+}
+
 function computeDealMetrics(deal = state.deal) {
   const currentPayment = parseNumber(deal.currentPayment);
-  const proposedPayment = parseNumber(deal.proposedPayment);
-  const netCost = parseNumber(deal.netCost);
-  const cashOut = parseNumber(deal.cashOut);
-
+  const option1 = parseNumber(deal.option1Payment);
+  const option2 = parseNumber(deal.option2Payment);
+  const selectedPayment = parseNumber(getSelectedPayment(deal) || deal.option1Payment);
+  const monthlyIncome = parseNumber(deal.monthlyIncome);
+  const annualIncome = Number.isFinite(monthlyIncome) ? monthlyIncome * 12 : NaN;
+  const optionSpread =
+    Number.isFinite(option1) && Number.isFinite(option2) ? option1 - option2 : NaN;
   const monthlySavings =
-    Number.isFinite(currentPayment) && Number.isFinite(proposedPayment)
-      ? currentPayment - proposedPayment
+    Number.isFinite(currentPayment) && Number.isFinite(selectedPayment)
+      ? currentPayment - selectedPayment
       : NaN;
-
   const annualSavings = Number.isFinite(monthlySavings) ? monthlySavings * 12 : NaN;
-
-  let breakEvenLabel = "—";
-  let breakEvenMonths = NaN;
-
-  if (
-    Number.isFinite(netCost) &&
-    netCost <= 0 &&
-    Number.isFinite(monthlySavings) &&
-    monthlySavings > 0
-  ) {
-    breakEvenLabel = "Immediate (0 mos)";
-    breakEvenMonths = 0;
-  } else if (
-    Number.isFinite(netCost) &&
-    netCost > 0 &&
-    Number.isFinite(monthlySavings) &&
-    monthlySavings > 0
-  ) {
-    breakEvenMonths = Math.ceil(netCost / monthlySavings);
-    breakEvenLabel = `${breakEvenMonths} mo${breakEvenMonths === 1 ? "" : "s"}`;
-  }
 
   return {
     currentPayment,
-    proposedPayment,
-    netCost,
-    cashOut,
+    option1,
+    option2,
+    selectedPayment,
+    optionSpread,
     monthlySavings,
     annualSavings,
-    breakEvenMonths,
-    breakEvenLabel
+    monthlyIncome,
+    annualIncome
   };
 }
 
@@ -188,18 +272,39 @@ function normalizeDeal(deal) {
     return structuredClone(fallback);
   }
 
-  return {
-    primaryGoal: typeof deal.primaryGoal === "string" ? deal.primaryGoal : "",
-    currentBalance: typeof deal.currentBalance === "string" ? deal.currentBalance : "",
-    currentRate: typeof deal.currentRate === "string" ? deal.currentRate : "",
-    currentPayment: typeof deal.currentPayment === "string" ? deal.currentPayment : "",
-    proposedRate: typeof deal.proposedRate === "string" ? deal.proposedRate : "",
-    proposedTerm:
-      typeof deal.proposedTerm === "string" && deal.proposedTerm ? deal.proposedTerm : "30 yr",
-    proposedPayment: typeof deal.proposedPayment === "string" ? deal.proposedPayment : "",
-    netCost: typeof deal.netCost === "string" ? deal.netCost : "",
-    cashOut: typeof deal.cashOut === "string" ? deal.cashOut : ""
-  };
+  const next = structuredClone(fallback);
+  for (const key of Object.keys(fallback)) {
+    if (typeof deal[key] === "string") {
+      next[key] = deal[key];
+    }
+  }
+
+  if (!["keep", "trade", ""].includes(next.horizon)) {
+    next.horizon = "";
+  }
+  if (!["bought", "none", ""].includes(next.dealerVsc)) {
+    next.dealerVsc = "";
+  }
+  if (!["none", "modified", ""].includes(next.mods)) {
+    next.mods = "";
+  }
+  if (!["option1", "option2", ""].includes(next.selectedOption)) {
+    next.selectedOption = "";
+  }
+  if (!["last4", "fourleaf"].includes(next.ssnMode)) {
+    next.ssnMode = "last4";
+  }
+  if (!["standard", "proof", "longpen"].includes(next.notaryMode)) {
+    next.notaryMode = "standard";
+  }
+  if (!["backend", "included"].includes(next.gapPitchMode)) {
+    next.gapPitchMode = "backend";
+  }
+  if (!["refundable", "sixty-day"].includes(next.gapRefundMode)) {
+    next.gapRefundMode = "refundable";
+  }
+
+  return next;
 }
 
 function normalizeCheckedItems(checkedItems) {
@@ -231,13 +336,15 @@ function stripLegacyState(storedState) {
   next.checkedItems = normalizeCheckedItems(next.checkedItems);
   next.selectedRebuttalId =
     typeof next.selectedRebuttalId === "string" ? next.selectedRebuttalId : "";
-  next.selectedPivotId =
-    typeof next.selectedPivotId === "string" ? next.selectedPivotId : "";
   next.activeStepId = typeof next.activeStepId === "string" ? next.activeStepId : "";
+  if (LEGACY_STEP_IDS.includes(next.activeStepId)) {
+    next.activeStepId = "";
+  }
   next.activeNoteTab = ["goal", "loan", "next"].includes(next.activeNoteTab)
     ? next.activeNoteTab
     : "goal";
   next.notesCollapsed = Boolean(next.notesCollapsed);
+  delete next.selectedPivotId;
   return next;
 }
 
@@ -360,47 +467,65 @@ function interpolateTalkTrack(rawText, { short = false } = {}) {
     deal.primaryGoal ||
     notes.goal.split(/[.,\n]/)[0]?.trim() ||
     (short ? "Goal" : "your refinance goal");
+  const customer = deal.customerName || (short ? "Customer" : "the customer");
+  const vehicle = deal.vehicle || (short ? "Vehicle" : "your vehicle");
+  const lender = deal.currentLender || (short ? "Current Lender" : "your current lender");
+  const currPmt = formatMoneyToken(deal.currentPayment, short ? "current payment" : "$___");
+  const stateName = deal.state || "your state";
+  const paymentPref =
+    deal.paymentPreference ||
+    (Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0
+      ? `around ${formatCurrency(metrics.selectedPayment || metrics.option1)}/mo`
+      : "a more comfortable payment");
+  const cuName = deal.lenderName || (short ? "Credit Union" : "the credit union");
+  const term = deal.proposedTerm || (short ? "___" : "___");
+  const rate = deal.proposedRate || (short ? "___" : "___");
+  const opt1 = formatMoneyToken(deal.option1Payment, short ? "Opt 1" : "$___");
+  const opt2 = formatMoneyToken(deal.option2Payment, short ? "Opt 2" : "$___");
+  const selectedPmt = formatMoneyToken(
+    getSelectedPayment(deal) || deal.option1Payment,
+    short ? "selected pmt" : "________"
+  );
+  const branch = getVscBranchLabel(deal);
+  const notary =
+    NOTARY_CHOICES.find((choice) => choice.value === deal.notaryMode)?.label || "Standard / Lounge";
+  const apr = deal.apr ? `${deal.apr}%` : "___";
+  const gapMo = formatMoneyToken(deal.gapMonthlyPayment, "$___");
+  const gapCost = formatMoneyToken(deal.gapCost, "$___");
 
-  let outcomeParts = [];
-  if (Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0) {
-    outcomeParts.push(
-      short
-        ? `Saves ${formatCurrency(metrics.monthlySavings)}/mo`
-        : `saving ${formatCurrency(metrics.monthlySavings)}/mo`
-    );
-  }
-  if (Number.isFinite(metrics.cashOut) && metrics.cashOut > 0) {
-    outcomeParts.push(
-      short
-        ? `${formatCurrency(metrics.cashOut)} Cash Out`
-        : `accessing ${formatCurrency(metrics.cashOut)} cash out`
-    );
-  }
-  if (deal.proposedRate) {
-    outcomeParts.push(
-      short
-        ? `${deal.proposedRate}% (${deal.proposedTerm})`
-        : `locking in ${deal.proposedRate}% (${deal.proposedTerm})`
-    );
-  }
-
-  const benefitText =
-    outcomeParts.join(" + ") ||
-    (short ? "Target Structure" : "a stronger monthly & long-term loan structure");
+  const tokens = {
+    customerName: customer,
+    Customer: customer,
+    vehicle,
+    Vehicle: vehicle,
+    currentLender: lender,
+    currentPayment: currPmt,
+    state: stateName,
+    goal: goalText,
+    paymentPreference: paymentPref,
+    "payment, cash, term, or certainty outcome": paymentPref,
+    benefit: paymentPref,
+    lenderName: cuName,
+    proposedTerm: term,
+    proposedRate: rate,
+    option1Payment: opt1,
+    option2Payment: opt2,
+    selectedPayment: selectedPmt,
+    vscBranch: branch,
+    notaryMode: notary,
+    apr,
+    gapMonthlyPayment: gapMo,
+    gapCost
+  };
 
   let html = escapeHtml(rawText);
-  html = html.replace(
-    /\[goal\]/gi,
-    `<span class="dynamic-token">${escapeHtml(short ? goalText : goalText.toLowerCase())}</span>`
-  );
-  html = html.replace(
-    /\[payment, cash, term, or certainty outcome\]/gi,
-    `<span class="dynamic-token">${escapeHtml(benefitText)}</span>`
-  );
-  html = html.replace(
-    /\[benefit\]/gi,
-    `<span class="dynamic-token">${escapeHtml(benefitText)}</span>`
-  );
+  for (const [key, value] of Object.entries(tokens)) {
+    const pattern = new RegExp(`\\[${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\]`, "gi");
+    html = html.replace(
+      pattern,
+      `<span class="dynamic-token">${escapeHtml(String(value))}</span>`
+    );
+  }
   return html;
 }
 
@@ -415,34 +540,47 @@ function renderLiveMetricsStrip() {
   const metrics = computeDealMetrics(deal);
   const badges = [];
 
+  if (deal.customerName || deal.vehicle) {
+    badges.push(
+      `<span class="metric-badge">${escapeHtml(
+        [deal.customerName, deal.vehicle].filter(Boolean).join(" · ")
+      )}</span>`
+    );
+  }
+
+  if (deal.currentLender || deal.currentPayment) {
+    const parts = [
+      deal.currentLender,
+      Number.isFinite(metrics.currentPayment) ? formatCurrency(metrics.currentPayment) : ""
+    ].filter(Boolean);
+    badges.push(`<span class="metric-badge">Curr: <strong>${escapeHtml(parts.join(" · "))}</strong></span>`);
+  }
+
   if (deal.primaryGoal) {
     badges.push(
       `<span class="metric-badge">Goal: <strong>${escapeHtml(deal.primaryGoal)}</strong></span>`
     );
   }
 
-  if (deal.currentRate || deal.currentPayment) {
-    const ratePart = deal.currentRate ? `${escapeHtml(deal.currentRate)}%` : "";
-    const pmtPart = Number.isFinite(metrics.currentPayment)
-      ? formatCurrency(metrics.currentPayment)
-      : "";
-    const combined = [ratePart, pmtPart].filter(Boolean).join(" · ");
-    badges.push(`<span class="metric-badge">Curr: <strong>${combined}</strong></span>`);
+  if (getVscBranchKey(deal)) {
+    badges.push(
+      `<span class="metric-badge">VSC: <strong>${escapeHtml(getVscBranchLabel(deal))}</strong></span>`
+    );
+  }
+
+  if (Number.isFinite(metrics.option1) || Number.isFinite(metrics.option2)) {
+    const optBits = [
+      Number.isFinite(metrics.option1) ? `1 ${formatCurrency(metrics.option1)}` : "",
+      Number.isFinite(metrics.option2) ? `2 ${formatCurrency(metrics.option2)}` : ""
+    ].filter(Boolean);
+    badges.push(`<span class="metric-badge">Opts: <strong>${escapeHtml(optBits.join(" / "))}</strong></span>`);
   }
 
   if (Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0) {
     badges.push(
       `<span class="metric-badge metric-positive">Saves: <strong>${formatCurrency(
         metrics.monthlySavings
-      )}/mo</strong> (${formatCurrency(metrics.annualSavings)}/yr)</span>`
-    );
-  }
-
-  if (metrics.breakEvenLabel !== "—") {
-    badges.push(
-      `<span class="metric-badge">Break-even: <strong>${escapeHtml(
-        metrics.breakEvenLabel
-      )}</strong></span>`
+      )}/mo</strong></span>`
     );
   }
 
@@ -500,7 +638,7 @@ function renderScriptOrCueCard({
         )}</p>
         ${
           followUpText
-            ? `<strong class="followup-heading">Follow-up question:</strong><p class="full-script-text">${escapeHtml(
+            ? `<strong class="followup-heading">Follow-up question:</strong><p class="full-script-text">${interpolateTalkTrack(
                 followUpText
               )}</p>`
             : ""
@@ -535,8 +673,9 @@ function renderScriptOrCueCard({
       )}</p>
       ${
         askLine
-          ? `<p class="cue-ask"><span class="cue-ask-badge">Ask</span> <span>${escapeHtml(
-              askLine
+          ? `<p class="cue-ask"><span class="cue-ask-badge">Ask</span> <span>${interpolateTalkTrack(
+              askLine,
+              { short: true }
             )}</span></p>`
           : ""
       }
@@ -546,6 +685,46 @@ function renderScriptOrCueCard({
           : ""
       }
     </article>
+  `;
+}
+
+function renderUnderlineField(label, field, placeholder, extra = "") {
+  return `
+    <label class="calc-field">
+      ${escapeHtml(label)}
+      <input
+        type="text"
+        data-deal-field="${escapeHtml(field)}"
+        placeholder="${escapeHtml(placeholder)}"
+        value="${escapeHtml(state.deal[field] || "")}"
+        ${extra}
+      />
+    </label>
+  `;
+}
+
+function renderChoiceRow(label, field, choices) {
+  return `
+    <div class="choice-block">
+      <p class="widget-label">${escapeHtml(label)}</p>
+      <div class="chip-row" role="group" aria-label="${escapeHtml(label)}">
+        ${choices
+          .map(
+            (choice) => `
+              <button
+                type="button"
+                class="chip"
+                data-deal-choice="${escapeHtml(field)}"
+                data-choice-value="${escapeHtml(choice.value)}"
+                aria-pressed="${state.deal[field] === choice.value ? "true" : "false"}"
+              >
+                ${escapeHtml(choice.label)}
+              </button>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
   `;
 }
 
@@ -601,20 +780,35 @@ function renderQuickObjectionDrawer() {
   `;
 }
 
-function renderDiscoveryWidget() {
-  const { deal } = state;
-
+function renderIntroWidget() {
   return `
-    <section class="inline-widget" aria-label="Discovery quick capture">
-      <p class="widget-label">1-Click Borrower Goal</p>
-      <div class="chip-row" role="group" aria-label="Primary borrower goal">
+    <section class="inline-widget" aria-label="Intro capture">
+      <p class="widget-label">Call Snapshot</p>
+      <div class="calc-grid">
+        ${renderUnderlineField("Customer", "customerName", "Mike")}
+        ${renderUnderlineField("Vehicle", "vehicle", "2021 F-150")}
+        ${renderUnderlineField("State", "state", "TX")}
+      </div>
+      <div class="calc-grid-2">
+        ${renderUnderlineField("Current Lender", "currentLender", "Ally")}
+        ${renderUnderlineField("Curr Pmt ($/mo)", "currentPayment", "485")}
+      </div>
+    </section>
+  `;
+}
+
+function renderDiscoveryWidget() {
+  return `
+    <section class="inline-widget" aria-label="Discovery capture">
+      <p class="widget-label">1-Click Refinance Goal</p>
+      <div class="chip-row" role="group" aria-label="Primary refinance goal">
         ${GOAL_CHIPS.map(
           (goal) => `
             <button
               type="button"
               class="chip"
               data-goal-chip="${escapeHtml(goal)}"
-              aria-pressed="${deal.primaryGoal === goal ? "true" : "false"}"
+              aria-pressed="${state.deal.primaryGoal === goal ? "true" : "false"}"
             >
               ${escapeHtml(goal)}
             </button>
@@ -622,124 +816,215 @@ function renderDiscoveryWidget() {
         ).join("")}
       </div>
       <div class="calc-grid">
-        <label class="calc-field">
-          Curr Balance ($)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="currentBalance"
-            placeholder="385,000"
-            value="${escapeHtml(deal.currentBalance)}"
-          />
-        </label>
-        <label class="calc-field">
-          Curr Rate (%)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="currentRate"
-            placeholder="7.125"
-            value="${escapeHtml(deal.currentRate)}"
-          />
-        </label>
-        <label class="calc-field">
-          Curr P&amp;I ($/mo)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="currentPayment"
-            placeholder="2,640"
-            value="${escapeHtml(deal.currentPayment)}"
-          />
-        </label>
+        ${renderUnderlineField("Payment Preference", "paymentPreference", "under $420")}
+        ${renderUnderlineField("Odometer Miles", "mileage", "48,200")}
+        ${renderUnderlineField("Other Obligations", "otherObligations", "cards / auto")}
       </div>
+      ${renderChoiceRow("Keep vs. Trade", "horizon", HORIZON_CHOICES)}
+      ${renderChoiceRow("Dealer Warranty / VSC", "dealerVsc", VSC_CHOICES)}
+      ${renderChoiceRow("Vehicle Mods", "mods", MOD_CHOICES)}
+    </section>
+  `;
+}
+
+function renderRecapWidget() {
+  const recapStep = steps.find((step) => step.id === "recap");
+  const branchKey = getVscBranchKey();
+  const branch = recapStep?.stageScripts?.[branchKey];
+
+  return `
+    <section class="inline-widget" aria-label="Recap and set the stage">
+      ${renderUnderlineField("Credit Union / Lender", "lenderName", "FourLeaf / Credit Union")}
+      ${renderChoiceRow("Horizon", "horizon", HORIZON_CHOICES)}
+      ${renderChoiceRow("Dealer VSC", "dealerVsc", VSC_CHOICES)}
+      ${
+        branch
+          ? renderScriptOrCueCard({
+              peekKey: `stage-${branchKey}`,
+              label: `Set the Stage — ${branch.label}`,
+              cueText: branch.cue,
+              fullScriptText: branch.script
+            })
+          : `<p class="step-goal">Select Keep vs. Trade and Dealer VSC to load the matching Set the Stage track.</p>`
+      }
     </section>
   `;
 }
 
 function renderCloseWidget() {
-  const { deal } = state;
-  const metrics = computeDealMetrics(deal);
-  const hasSavings = Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0;
+  const metrics = computeDealMetrics();
+  const hasSavings = Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings !== 0;
+  const spreadLabel = Number.isFinite(metrics.optionSpread)
+    ? `${metrics.optionSpread >= 0 ? "+" : ""}${formatCurrency(metrics.optionSpread)} Opt 1 vs Opt 2`
+    : "Enter both options";
 
   return `
-    <section class="inline-widget" aria-label="Refi Close Calculator">
-      <p class="widget-label">Proposed Offer &amp; Break-Even Calculator</p>
+    <section class="inline-widget" aria-label="Two option close">
+      <p class="widget-label">Recommended Structure</p>
       <div class="calc-grid">
-        <label class="calc-field">
-          New Rate (%)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="proposedRate"
-            placeholder="5.875"
-            value="${escapeHtml(deal.proposedRate)}"
-          />
-        </label>
-        <label class="calc-field">
-          New Term
-          <select data-deal-field="proposedTerm">
-            ${["30 yr", "25 yr", "20 yr", "15 yr", "10 yr"]
-              .map(
-                (term) =>
-                  `<option value="${term}" ${
-                    deal.proposedTerm === term ? "selected" : ""
-                  }>${term}</option>`
-              )
-              .join("")}
-          </select>
-        </label>
-        <label class="calc-field">
-          New P&amp;I ($/mo)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="proposedPayment"
-            placeholder="2,280"
-            value="${escapeHtml(deal.proposedPayment)}"
-          />
-        </label>
+        ${renderUnderlineField("Term (mos)", "proposedTerm", "72")}
+        ${renderUnderlineField("Rate (%)", "proposedRate", "6.49")}
+        ${renderUnderlineField("Curr Pmt ($/mo)", "currentPayment", "485")}
       </div>
       <div class="calc-grid-2">
-        <label class="calc-field">
-          Net Cost / Credit ($)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="netCost"
-            placeholder="1,800 (or 0)"
-            value="${escapeHtml(deal.netCost)}"
-          />
-        </label>
-        <label class="calc-field">
-          Cash Out ($ optional)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="cashOut"
-            placeholder="0"
-            value="${escapeHtml(deal.cashOut)}"
-          />
-        </label>
+        ${renderUnderlineField("Option 1 w/ Protection ($/mo)", "option1Payment", "462")}
+        ${renderUnderlineField("Option 2 Out-of-Pocket ($/mo)", "option2Payment", "428")}
       </div>
       <div id="close-calc-summary" class="calc-output-row">
-        <div class="calc-stat ${hasSavings ? "stat-positive" : ""}">
-          <span class="calc-stat-label">Monthly / Annual Savings</span>
+        <div class="calc-stat ${hasSavings && metrics.monthlySavings > 0 ? "stat-positive" : ""}">
+          <span class="calc-stat-label">Vs. Current Payment</span>
           <span class="calc-stat-value">
             ${
-              hasSavings
-                ? `${formatCurrency(metrics.monthlySavings)}/mo (${formatCurrency(
-                    metrics.annualSavings
-                  )}/yr)`
-                : "Enter Curr & New Pmt"
+              Number.isFinite(metrics.monthlySavings)
+                ? `${metrics.monthlySavings >= 0 ? "Saves" : "Adds"} ${formatCurrency(
+                    Math.abs(metrics.monthlySavings)
+                  )}/mo`
+                : "Enter current & option pmts"
             }
           </span>
         </div>
         <div class="calc-stat">
-          <span class="calc-stat-label">Break-Even Period</span>
-          <span class="calc-stat-value">${escapeHtml(metrics.breakEvenLabel)}</span>
+          <span class="calc-stat-label">Protection Spread</span>
+          <span class="calc-stat-value">${escapeHtml(spreadLabel)}</span>
         </div>
       </div>
+      ${renderChoiceRow("Customer Selected", "selectedOption", OPTION_CHOICES)}
+    </section>
+  `;
+}
+
+function renderAioaStrip(step) {
+  if (!step.aioa?.length) {
+    return "";
+  }
+
+  return `
+    <section class="aioa-ledger" aria-label="AIOA Framework">
+      <p class="widget-label">AIOA Framework</p>
+      ${step.aioa
+        .map(
+          (row) => `
+            <div class="aioa-row">
+              <span class="aioa-letter">${escapeHtml(row.letter)}</span>
+              <div>
+                <strong>${escapeHtml(row.label)}</strong>
+                ${isLiveMode() ? "" : `<p>${escapeHtml(row.purpose)}</p>`}
+                <p class="aioa-example">${escapeHtml(row.example)}</p>
+              </div>
+            </div>
+          `
+        )
+        .join("")}
+    </section>
+  `;
+}
+
+function renderDocWalkWidget() {
+  const docStep = steps.find((step) => step.id === "docwalk");
+  const metrics = computeDealMetrics();
+  const ssnKey = state.deal.ssnMode === "fourleaf" ? "fourleaf" : "standard";
+  const ssnScript = docStep?.notaryScripts?.[ssnKey];
+  const notaryScript = docStep?.notaryScripts?.[state.deal.notaryMode];
+
+  return `
+    <section class="inline-widget" aria-label="DocWalk verification">
+      <div class="verify-group">
+        <p class="widget-label">Employment Income</p>
+        <div class="calc-grid-2">
+          ${renderUnderlineField("Gross Monthly ($)", "monthlyIncome", "5,400")}
+          <div class="calc-field">
+            Equates Yearly
+            <p class="calc-stat-value" id="annual-income-readout">
+              ${Number.isFinite(metrics.annualIncome) ? formatCurrency(metrics.annualIncome) : "—"}
+            </p>
+          </div>
+        </div>
+      </div>
+      ${renderChoiceRow("DocuSign Access", "ssnMode", SSN_CHOICES)}
+      ${
+        ssnScript && state.deal.ssnMode === "fourleaf"
+          ? renderScriptOrCueCard({
+              peekKey: "ssn-fourleaf",
+              label: ssnScript.label,
+              cueText: ssnScript.cue,
+              fullScriptText: ssnScript.script
+            })
+          : ""
+      }
+      ${renderChoiceRow("Notary Path", "notaryMode", NOTARY_CHOICES)}
+      ${
+        notaryScript
+          ? renderScriptOrCueCard({
+              peekKey: `notary-${state.deal.notaryMode}`,
+              label: `Docs — ${notaryScript.label}`,
+              cueText: notaryScript.cue,
+              fullScriptText: notaryScript.script
+            })
+          : ""
+      }
+    </section>
+  `;
+}
+
+function renderQaWidget() {
+  const qaStep = steps.find((step) => step.id === "qa");
+  const declinedVsc = state.deal.selectedOption === "option2";
+  const pitch = qaStep?.gapScripts?.[state.deal.gapPitchMode];
+  const refund = qaStep?.gapScripts?.[state.deal.gapRefundMode];
+
+  return `
+    <section class="inline-widget" aria-label="Quality assurance breakdown">
+      ${
+        declinedVsc
+          ? `<p class="ink-warning">Customer selected Option 2 (no VSC). Re-pitch protection with AIOA before reading QA.</p>`
+          : ""
+      }
+      <p class="widget-label">Itemized Loan</p>
+      <div class="calc-grid">
+        ${renderUnderlineField("Lender", "lenderName", "Credit Union")}
+        ${renderUnderlineField("Term (mos)", "proposedTerm", "72")}
+        ${renderUnderlineField("Rate (%)", "proposedRate", "6.49")}
+      </div>
+      <div class="calc-grid">
+        ${renderUnderlineField("APR (%)", "apr", "7.12")}
+        ${renderUnderlineField("VSC Cost ($)", "vscCost", "2,495")}
+        ${renderUnderlineField("Other Product ($)", "otherProductCost", "895 GAP")}
+      </div>
+      <div class="calc-grid-2">
+        ${renderUnderlineField("Title Fee ($)", "titleFee", "75")}
+        ${renderUnderlineField("Lender Fee ($)", "lenderFee", "499")}
+      </div>
+      <p class="widget-label">Assuming the GAP</p>
+      <div class="calc-grid-2">
+        ${renderUnderlineField("GAP Cost ($)", "gapCost", "895")}
+        ${renderUnderlineField("GAP Monthly ($)", "gapMonthlyPayment", "18")}
+      </div>
+      ${renderChoiceRow("GAP Pitch", "gapPitchMode", GAP_PITCH_CHOICES)}
+      ${
+        pitch
+          ? renderScriptOrCueCard({
+              peekKey: `gap-${state.deal.gapPitchMode}`,
+              label: pitch.label,
+              cueText: pitch.cue,
+              askCueText:
+                state.deal.gapPitchMode === "backend"
+                  ? "Did you want to maintain GAP on the new loan going forward?"
+                  : "",
+              fullScriptText: pitch.script
+            })
+          : ""
+      }
+      ${renderChoiceRow("GAP Refund", "gapRefundMode", GAP_REFUND_CHOICES)}
+      ${
+        refund
+          ? renderScriptOrCueCard({
+              peekKey: `gap-refund-${state.deal.gapRefundMode}`,
+              label: refund.label,
+              cueText: refund.cue,
+              fullScriptText: refund.script
+            })
+          : ""
+      }
     </section>
   `;
 }
@@ -749,8 +1034,8 @@ function renderChecklist(step) {
     return "";
   }
 
-  // In Live Mode, Discovery & Close inputs already auto-track their checklists
-  if (isLiveMode() && (step.id === "discovery" || step.id === "close")) {
+  const widgetSteps = new Set(["discovery", "recap", "close", "docwalk", "qa"]);
+  if (isLiveMode() && widgetSteps.has(step.id)) {
     return "";
   }
 
@@ -811,12 +1096,7 @@ function renderChecklist(step) {
 }
 
 function renderPrompts(step) {
-  if (!step.prompts?.length || step.id === "close") {
-    return "";
-  }
-
-  // In Live Mode, the primary question is already featured inside the Live Cue card
-  if (isLiveMode()) {
+  if (!step.prompts?.length || isLiveMode()) {
     return "";
   }
 
@@ -824,7 +1104,7 @@ function renderPrompts(step) {
     <div>
       <p class="section-sublabel">Questions to Ask</p>
       <ul class="prompt-list">
-        ${step.prompts.map((prompt) => `<li>${escapeHtml(prompt)}</li>`).join("")}
+        ${step.prompts.map((prompt) => `<li>${interpolateTalkTrack(prompt)}</li>`).join("")}
       </ul>
     </div>
   `;
@@ -840,6 +1120,7 @@ function renderRebuttals(step) {
     step.rebuttals[0];
 
   return `
+    ${renderAioaStrip(step)}
     <div class="chip-row" role="group" aria-label="Common objections">
       ${step.rebuttals
         .map(
@@ -867,49 +1148,6 @@ function renderRebuttals(step) {
   `;
 }
 
-function renderOptions(step) {
-  if (!step.options?.length) {
-    return "";
-  }
-
-  const selectedOption =
-    step.options.find((opt) => (opt.id || opt.title) === state.selectedPivotId) ||
-    step.options[0];
-  const live = isLiveMode();
-
-  return `
-    <div class="option-grid" role="group" aria-label="Loan structure pivots">
-      ${step.options
-        .map((option) => {
-          const optId = option.id || option.title;
-          const isSelected = optId === (selectedOption.id || selectedOption.title);
-          return `
-            <button
-              type="button"
-              class="option-card"
-              data-pivot-id="${escapeHtml(optId)}"
-              aria-pressed="${isSelected ? "true" : "false"}"
-            >
-              <h3>${escapeHtml(option.title)}</h3>
-              ${!live ? `<p>${escapeHtml(option.description)}</p>` : ""}
-            </button>
-          `;
-        })
-        .join("")}
-    </div>
-    ${
-      selectedOption?.talkTrack
-        ? renderScriptOrCueCard({
-            peekKey: `pivot-${selectedOption.id || selectedOption.title}`,
-            label: `Pivot — ${selectedOption.title}`,
-            cueText: selectedOption.cue,
-            fullScriptText: selectedOption.talkTrack
-          })
-        : ""
-    }
-  `;
-}
-
 function renderStepDetail() {
   const step = getActiveStep();
   if (!step) {
@@ -927,7 +1165,7 @@ function renderStepDetail() {
         <span class="step-kicker">Step ${escapeHtml(step.number)}</span>
         <h2 id="step-title" class="step-title" tabindex="-1">${escapeHtml(step.title)}</h2>
       </div>
-      ${!live ? `<p class="step-subtitle">${escapeHtml(step.subtitle)}</p>` : ""}
+      <p class="step-subtitle">${escapeHtml(step.subtitle)}</p>
     </div>
     ${!live ? `<p class="step-goal">${escapeHtml(step.goal)}</p>` : ""}
     ${
@@ -942,11 +1180,14 @@ function renderStepDetail() {
           })
         : ""
     }
+    ${step.id === "intro" ? renderIntroWidget() : ""}
     ${step.id === "discovery" ? renderDiscoveryWidget() : ""}
+    ${step.id === "recap" ? renderRecapWidget() : ""}
     ${step.id === "close" ? renderCloseWidget() : ""}
+    ${step.id === "docwalk" ? renderDocWalkWidget() : ""}
+    ${step.id === "qa" ? renderQaWidget() : ""}
     ${renderPrompts(step)}
     ${renderRebuttals(step)}
-    ${renderOptions(step)}
     ${renderChecklist(step)}
     <div class="step-nav-footer">
       <button
@@ -1064,11 +1305,11 @@ async function setActiveStep(stepId) {
   }
 
   const autoTab =
-    stepId === "discovery"
+    stepId === "intro" || stepId === "discovery"
       ? "goal"
-      : stepId === "close"
+      : stepId === "recap" || stepId === "close"
         ? "loan"
-        : stepId === "rebuttal" || stepId === "pivot"
+        : stepId === "rebuttal" || stepId === "docwalk" || stepId === "qa"
           ? "next"
           : state.activeNoteTab;
 
@@ -1150,29 +1391,94 @@ function updateNotes() {
 
 function updateCloseSummaryInPlace() {
   const summaryEl = document.getElementById("close-calc-summary");
-  if (!summaryEl) {
+  if (summaryEl) {
+    const metrics = computeDealMetrics(state.deal);
+    const spreadLabel = Number.isFinite(metrics.optionSpread)
+      ? `${metrics.optionSpread >= 0 ? "+" : ""}${formatCurrency(metrics.optionSpread)} Opt 1 vs Opt 2`
+      : "Enter both options";
+    summaryEl.innerHTML = `
+      <div class="calc-stat ${
+        Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0 ? "stat-positive" : ""
+      }">
+        <span class="calc-stat-label">Vs. Current Payment</span>
+        <span class="calc-stat-value">
+          ${
+            Number.isFinite(metrics.monthlySavings)
+              ? `${metrics.monthlySavings >= 0 ? "Saves" : "Adds"} ${formatCurrency(
+                  Math.abs(metrics.monthlySavings)
+                )}/mo`
+              : "Enter current & option pmts"
+          }
+        </span>
+      </div>
+      <div class="calc-stat">
+        <span class="calc-stat-label">Protection Spread</span>
+        <span class="calc-stat-value">${escapeHtml(spreadLabel)}</span>
+      </div>
+    `;
+  }
+
+  const annualEl = document.getElementById("annual-income-readout");
+  if (annualEl) {
+    const metrics = computeDealMetrics(state.deal);
+    annualEl.textContent = Number.isFinite(metrics.annualIncome)
+      ? formatCurrency(metrics.annualIncome)
+      : "—";
+  }
+}
+
+function markFieldsOnDeal(field, value) {
+  if (!String(value || "").trim() && !["horizon", "dealerVsc", "mods", "selectedOption"].includes(field)) {
     return;
   }
-  const metrics = computeDealMetrics(state.deal);
-  const hasSavings = Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0;
-  summaryEl.innerHTML = `
-    <div class="calc-stat ${hasSavings ? "stat-positive" : ""}">
-      <span class="calc-stat-label">Monthly / Annual Savings</span>
-      <span class="calc-stat-value">
-        ${
-          hasSavings
-            ? `${formatCurrency(metrics.monthlySavings)}/mo (${formatCurrency(
-                metrics.annualSavings
-              )}/yr)`
-            : "Enter Curr & New Pmt"
-        }
-      </span>
-    </div>
-    <div class="calc-stat">
-      <span class="calc-stat-label">Break-Even Period</span>
-      <span class="calc-stat-value">${escapeHtml(metrics.breakEvenLabel)}</span>
-    </div>
-  `;
+
+  if (field === "customerName") {
+    markChecklistItem("intro", "customer name");
+  } else if (field === "currentLender" || field === "currentPayment") {
+    markChecklistItem("intro", "current lender");
+  } else if (field === "primaryGoal") {
+    markChecklistItem("discovery", "primary goal");
+    markChecklistItem("recap", "customer's goal");
+  } else if (field === "paymentPreference") {
+    markChecklistItem("discovery", "payment comfort");
+    markChecklistItem("recap", "payment preference");
+  } else if (field === "otherObligations") {
+    markChecklistItem("discovery", "other financial");
+  } else if (field === "mileage") {
+    markChecklistItem("discovery", "odometer");
+  } else if (field === "horizon") {
+    markChecklistItem("discovery", "keep vs");
+  } else if (field === "dealerVsc") {
+    markChecklistItem("discovery", "dealer warranty");
+    markChecklistItem("recap", "vsc branch");
+  } else if (field === "mods") {
+    markChecklistItem("discovery", "lift or aftermarket");
+  } else if (field === "lenderName") {
+    markChecklistItem("recap", "simple-interest");
+    markChecklistItem("qa", "lender, term");
+  } else if (field === "proposedTerm" || field === "proposedRate") {
+    markChecklistItem("close", "term and rate");
+    markChecklistItem("qa", "lender, term");
+  } else if (field === "option1Payment") {
+    markChecklistItem("close", "option 1");
+  } else if (field === "option2Payment") {
+    markChecklistItem("close", "option 2");
+  } else if (field === "selectedOption") {
+    markChecklistItem("close", "which option");
+    if (value === "option2") {
+      markChecklistItem("qa", "re-pitch vsc");
+    }
+  } else if (field === "monthlyIncome") {
+    markChecklistItem("docwalk", "employment");
+  } else if (field === "notaryMode" || field === "ssnMode") {
+    markChecklistItem("docwalk", "email");
+  } else if (field === "vscCost" || field === "otherProductCost") {
+    markChecklistItem("qa", "itemize vsc");
+  } else if (field === "titleFee" || field === "lenderFee") {
+    markChecklistItem("qa", "title fee");
+  } else if (field === "gapPitchMode" || field === "gapCost" || field === "gapMonthlyPayment") {
+    markChecklistItem("qa", "assume gap");
+  }
 }
 
 function handleDealFieldInput(inputEl) {
@@ -1189,38 +1495,11 @@ function handleDealFieldInput(inputEl) {
     }
   };
 
-  if (field === "currentBalance" && inputEl.value.trim()) {
-    markChecklistItem("discovery", "current balance");
-  } else if (field === "currentRate" && inputEl.value.trim()) {
-    markChecklistItem("discovery", "current rate");
-  } else if (field === "currentPayment" && inputEl.value.trim()) {
-    markChecklistItem("discovery", "current payment");
-  } else if (field === "proposedPayment" && inputEl.value.trim()) {
-    markChecklistItem("close", "proposed payment");
-  } else if (field === "proposedRate" && inputEl.value.trim()) {
-    markChecklistItem("close", "rate and term");
-  } else if (field === "netCost" && inputEl.value.trim()) {
-    markChecklistItem("close", "closing costs");
-    markChecklistItem("close", "break-even");
-  }
-
+  markFieldsOnDeal(field, inputEl.value);
   renderLiveMetricsStrip();
   renderStepList();
   updateCloseSummaryInPlace();
   refreshActiveTalkTrackInPlace();
-
-  for (const pill of elements.stepDetail.querySelectorAll("[data-check-pill-index]")) {
-    const step = getActiveStep();
-    const idx = Number(pill.dataset.checkPillIndex);
-    const item = step?.checklist?.[idx];
-    const isChecked = item ? getCheckedItems(step.id).includes(item) : false;
-    pill.setAttribute("aria-pressed", isChecked ? "true" : "false");
-    const icon = pill.querySelector(".check-pill-icon");
-    if (icon) {
-      icon.textContent = isChecked ? "[x]" : "[ ]";
-    }
-  }
-
   schedulePersist();
 }
 
@@ -1236,8 +1515,24 @@ async function selectGoalChip(goalValue) {
 
   if (nextGoal) {
     markChecklistItem("discovery", "primary goal");
+    markChecklistItem("recap", "customer's goal");
   }
 
+  await flushState();
+  renderApp();
+}
+
+async function selectDealChoice(field, value) {
+  const nextValue = state.deal[field] === value ? "" : value;
+  state = {
+    ...state,
+    deal: {
+      ...state.deal,
+      [field]: nextValue || (field === "ssnMode" ? "last4" : field === "notaryMode" ? "standard" : field === "gapPitchMode" ? "backend" : field === "gapRefundMode" ? "refundable" : nextValue)
+    }
+  };
+
+  markFieldsOnDeal(field, state.deal[field]);
   await flushState();
   renderApp();
 }
@@ -1272,44 +1567,67 @@ function buildCrmNote() {
   const step = getActiveStep();
   const { deal, notes } = state;
   const metrics = computeDealMetrics(deal);
-
-  const goalSummary =
-    [deal.primaryGoal, notes.goal].filter(Boolean).join(" — ") || "Not captured";
-
-  const currentSnap = [
-    deal.currentBalance ? `Bal: $${deal.currentBalance}` : "",
-    deal.currentRate ? `Rate: ${deal.currentRate}%` : "",
-    deal.currentPayment ? `Pmt: $${deal.currentPayment}/mo` : ""
-  ]
-    .filter(Boolean)
-    .join(" | ");
-
-  const proposedSnap = [
-    deal.proposedRate ? `New Rate: ${deal.proposedRate}% (${deal.proposedTerm})` : "",
-    deal.proposedPayment ? `New Pmt: $${deal.proposedPayment}/mo` : "",
-    Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0
-      ? `Savings: ${formatCurrency(metrics.monthlySavings)}/mo (${formatCurrency(
-          metrics.annualSavings
-        )}/yr)`
-      : "",
-    metrics.breakEvenLabel !== "—" ? `Break-Even: ${metrics.breakEvenLabel}` : "",
-    deal.cashOut ? `Cash Out: $${deal.cashOut}` : ""
-  ]
-    .filter(Boolean)
-    .join(" | ");
-
-  const loanDetailsCombined =
-    [currentSnap, proposedSnap, notes.loan].filter(Boolean).join(" // ") ||
-    "Not captured";
+  const selectedPmt = getSelectedPayment(deal);
 
   const lines = [
-    "REFI CALL NOTES",
-    `Current step: ${step.number}. ${step.title}`,
+    "GRAVITY LENDING AUTO REFI NOTES",
+    `Current step: ${step.number}. ${step.title} — ${step.subtitle}`,
     "",
-    `Borrower goal: ${goalSummary}`,
-    `Loan details: ${loanDetailsCombined}`,
-    `Objections / next step: ${notes.next || "Not captured"}`
-  ];
+    `Customer: ${deal.customerName || "Not captured"}`,
+    `Vehicle: ${deal.vehicle || "Not captured"}`,
+    `State: ${deal.state || "Not captured"}`,
+    `Current loan: ${[deal.currentLender, deal.currentPayment ? `$${deal.currentPayment}/mo` : ""]
+      .filter(Boolean)
+      .join(" | ") || "Not captured"}`,
+    "",
+    `Goal: ${[deal.primaryGoal, notes.goal].filter(Boolean).join(" — ") || "Not captured"}`,
+    `Payment preference: ${deal.paymentPreference || "Not captured"}`,
+    `Other obligations: ${deal.otherObligations || "Not captured"}`,
+    `Mileage: ${deal.mileage || "Not captured"}`,
+    `Keep vs Trade: ${HORIZON_CHOICES.find((c) => c.value === deal.horizon)?.label || "Not captured"}`,
+    `Dealer VSC: ${VSC_CHOICES.find((c) => c.value === deal.dealerVsc)?.label || "Not captured"}`,
+    `Mods: ${MOD_CHOICES.find((c) => c.value === deal.mods)?.label || "Not captured"}`,
+    `VSC branch: ${getVscBranchKey(deal) ? getVscBranchLabel(deal) : "Not set"}`,
+    "",
+    `Proposed lender: ${deal.lenderName || "Not captured"}`,
+    `Term / Rate / APR: ${[deal.proposedTerm ? `${deal.proposedTerm} mo` : "", deal.proposedRate ? `${deal.proposedRate}%` : "", deal.apr ? `APR ${deal.apr}%` : ""]
+      .filter(Boolean)
+      .join(" | ") || "Not captured"}`,
+    `Option 1 (w/ protection): ${deal.option1Payment ? `$${deal.option1Payment}/mo` : "Not captured"}`,
+    `Option 2 (no VSC): ${deal.option2Payment ? `$${deal.option2Payment}/mo` : "Not captured"}`,
+    `Selected: ${OPTION_CHOICES.find((c) => c.value === deal.selectedOption)?.label || "Not captured"}${
+      selectedPmt ? ` @ $${selectedPmt}/mo` : ""
+    }`,
+    Number.isFinite(metrics.monthlySavings)
+      ? `Vs current: ${metrics.monthlySavings >= 0 ? "saves" : "adds"} ${formatCurrency(
+          Math.abs(metrics.monthlySavings)
+        )}/mo`
+      : "",
+    "",
+    `DocuSign: ${SSN_CHOICES.find((c) => c.value === deal.ssnMode)?.label || "Last 4 SSN"}`,
+    `Notary: ${NOTARY_CHOICES.find((c) => c.value === deal.notaryMode)?.label || "Standard"}`,
+    Number.isFinite(metrics.annualIncome)
+      ? `Gross income: ${formatCurrency(metrics.monthlyIncome)}/mo (${formatCurrency(
+          metrics.annualIncome
+        )}/yr)`
+      : "",
+    `VSC cost / other / title / lender fee: ${[
+      deal.vscCost && `VSC $${deal.vscCost}`,
+      deal.otherProductCost && `Other $${deal.otherProductCost}`,
+      deal.titleFee && `Title $${deal.titleFee}`,
+      deal.lenderFee && `Lender $${deal.lenderFee}`
+    ]
+      .filter(Boolean)
+      .join(" | ") || "Not captured"}`,
+    `GAP: ${GAP_PITCH_CHOICES.find((c) => c.value === deal.gapPitchMode)?.label || ""} / ${
+      GAP_REFUND_CHOICES.find((c) => c.value === deal.gapRefundMode)?.label || ""
+    }${deal.gapCost ? ` · $${deal.gapCost}` : ""}${
+      deal.gapMonthlyPayment ? ` · $${deal.gapMonthlyPayment}/mo` : ""
+    }`,
+    "",
+    `Loan notes: ${notes.loan || "Not captured"}`,
+    `Next step / objections: ${notes.next || "Not captured"}`
+  ].filter((line, index, arr) => line !== "" || arr[index - 1] !== "");
 
   const selected = findSelectedRebuttal();
   if (selected) {
@@ -1383,11 +1701,6 @@ async function resetCall() {
 async function selectRebuttal(rebuttalId) {
   await flushState({ selectedRebuttalId: rebuttalId });
   renderQuickObjectionDrawer();
-  renderStepDetail();
-}
-
-async function selectPivot(pivotId) {
-  await flushState({ selectedPivotId: pivotId });
   renderStepDetail();
 }
 
@@ -1480,17 +1793,17 @@ function bindEvents() {
       return;
     }
 
+    const choiceBtn = event.target.closest("[data-deal-choice]");
+    if (choiceBtn) {
+      disarmClearCall();
+      selectDealChoice(choiceBtn.dataset.dealChoice, choiceBtn.dataset.choiceValue);
+      return;
+    }
+
     const rebuttalButton = event.target.closest("[data-rebuttal-id]");
     if (rebuttalButton) {
       disarmClearCall();
       selectRebuttal(rebuttalButton.dataset.rebuttalId);
-      return;
-    }
-
-    const pivotButton = event.target.closest("[data-pivot-id]");
-    if (pivotButton) {
-      disarmClearCall();
-      selectPivot(pivotButton.dataset.pivotId);
       return;
     }
 

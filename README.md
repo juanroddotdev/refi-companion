@@ -1,6 +1,6 @@
 # Refi Companion
 
-Refi Companion is a Chrome Manifest V3 side-panel extension for refinance loan officers. It combines a **sparse, glanceable Live Call Mode** (with inline `"Peek script"` toggles) and a **thorough Practice Mode** (full verbatim scripts, explanations, and checklists), alongside inline discovery & break-even calculators, an instant objection drawer, and a one-click CRM note formatter.
+Refi Companion is a Chrome Manifest V3 side-panel companion for Gravity Lending auto refinance calls. It combines a **sparse, glanceable Live Call Mode** (with inline `"Peek script"` toggles) and a **thorough Practice Mode** (full verbatim Gravity Lending scripts and checklists), with interactive keep/trade + VSC branching, a 2-option close, the AIOA rebuttal framework, DocWalk/notary switching, and a one-click CRM note formatter.
 
 This version is intentionally fast and local-first:
 
@@ -10,21 +10,31 @@ This version is intentionally fast and local-first:
 - No external services
 - All call notes and deal numbers stay local in the browser
 
+## 7-Step Gravity Lending Flow
+
+Short titles stay on the rail; Gravity Lending section titles show as subtitles in both Live and Practice modes.
+
+1. **Intro** — Intro & Qualification
+2. **Discovery** — Discovery & Vehicle Verification
+3. **Recap** — Recap & Set the Stage (auto-loads the matching Keep/Trade + Dealer VSC talk track)
+4. **Mic Drop Close** — 2-Option Pitch (VSC vs. Out-of-Pocket)
+5. **Rebuttal Hub** — Rebuttal / Pivot (AIOA Framework)
+6. **DocWalk** — Application, DL, Residency, Employment & Notary
+7. **Quality Assurance** — Final Loan Breakdown & Assuming the GAP
+
 ## Live Mode vs. Practice Mode (`Alt+M`)
 
-- **Live Mode (Default for Active Calls):** Strips out paragraphs, subtitles, and redundant checklists so you never have to read prose while talking to a borrower. Displays a single bold 4–6 word **Live Cue**, a single highlighted **ASK** prompt, compact 1-word check pills, and the interactive inputs.
-- **Inline `"Peek script"` Button:** While in Live Mode, click **Peek script** on any step, objection, or pivot card to temporarily expand the full word-for-word sentence without leaving Live Mode.
-- **Practice Mode (Training & Roleplay):** Displays full step goals, verbatim talk-track paragraphs, complete discovery question lists, and full checklists.
+- **Live Mode (Default for Active Calls):** Strips out paragraphs and redundant checklists so you never have to read prose while talking. Displays a bold **Live Cue**, a single **ASK** line, compact check pills, and the interactive inputs.
+- **Inline `"Peek script"` Button:** Click **Peek script** on any step, objection, VSC branch, notary path, or GAP pitch to expand the full word-for-word sentence without leaving Live Mode.
+- **Practice Mode (Training & Roleplay):** Displays full step goals, verbatim Gravity Lending talk tracks, question lists, and checklists.
 
 ## Key Features for Live Calls
 
-- **Compact 7-Step Rail & HUD Strip:** Keeps the active step cue, calculator, and scratchpad visible in a single 320px–360px side-panel viewport without elevator scrolling.
-- **1-Click Goal Chips & Discovery Capture (Step 2):** Select the borrower's primary goal (`Lower Payment`, `Cash-Out / Debt Consolidation`, `Shorten Term`, `Remove MI / Switch to Fixed`) and enter current balance, rate, and payment inline—automatically checking off corresponding discovery items.
-- **Auto-Calculated Savings & Break-Even (Step 5):** Enter proposed rate, term, new P&I payment, and net closing cost/credit to immediately see monthly/annual savings and break-even months.
-- **Dynamic Cues & Talk Tracks:** Replaces `[goal]` and `[benefit]` placeholders in Step 3 (Recap), Step 5 (Mic Drop Close), and objections with the borrower's actual goal and calculated monthly savings.
-- **Instant Objection Drawer (`Alt+O`):** Access rebuttals from *any* step on the call without losing your place in the script.
-- **Interactive Pivot Scripts (Step 7):** Click any loan-structure pivot card (`Lender Credit`, `Shorter Term`, `Payment Focus`, `Follow-Up Plan`) to display its cue or verbatim talk track.
-- **Docked Tabbed Scratchpad:** Always-accessible bottom scratchpad (`Goal & Story`, `Loan Notes`, `Next Step`) that can be collapsed at any time.
+- **Keep / Trade + Dealer VSC branching:** Selections in Step 2 automatically load the matching Set the Stage track in Step 3 (`Keeping + Bought`, `Trading + Bought`, `Keeping + No VSC`, `Trading + No VSC`).
+- **2-Option Close Calculator:** Enter current payment, Option 1 (with protection), and Option 2 (out-of-pocket repairs) to see monthly savings vs. current and the protection spread.
+- **AIOA Framework:** Agree → Isolate → Overcome → Ask, plus auto-refi objection chips available from any step (`Alt+O`).
+- **DocWalk Notary Switcher:** Last 4 SSN vs. FourLeaf full SSN, plus Standard / Lending Lounge, Proof Online ($30), or LongPen (TX) scripts. Gross monthly income auto-calculates yearly.
+- **QA + Assuming the GAP:** Itemized lender/term/rate/APR/fees, VSC decline warning if they chose Option 2, and Back-End vs. Already Included GAP pitches with refundable vs. 60-day opt-out.
 - **Keyboard Shortcuts:**
   - `Alt + M`: Switch between **Live** and **Practice** mode
   - `Alt + →` / `Alt + ←`: Next / Previous script step
@@ -34,12 +44,14 @@ This version is intentionally fast and local-first:
 ## Project structure
 
 ```text
-manifest.json        Chrome extension manifest
-service-worker.js    Enables side-panel behavior from the extension action
-panel.html           Side-panel cockpit layout
-panel.css            Compact side-panel styling
-panel.js             Live/Practice modes, inline peek, refi calculators, local state, and CRM copy
-steps.json           Editable cues, scripts, checklists, rebuttals, and pivot content
+manifest.json                    Chrome extension manifest
+service-worker.js                Enables side-panel behavior from the extension action
+panel.html                       Side-panel cockpit layout
+panel.css                        Index-card / legal-pad styling
+panel.js                         Live/Practice modes, Gravity Lending widgets, local state, CRM copy
+steps.json                       Gravity Lending cues, scripts, rebuttals, notary and GAP tracks
+gravity_lending_script_guide.md  Source call script
+TODO.md                          Deferred feature backlog
 ```
 
 ## Load locally in Chrome
@@ -57,13 +69,14 @@ Most call content lives in `steps.json`.
 
 Use it to adjust:
 
-- step titles & goals
+- step titles & Gravity Lending subtitles
 - `cue` & `askCue` (used in **Live Mode**)
 - `script` (used in **Practice Mode** and **Peek script**)
+- `stageScripts` (Step 3 VSC branches)
+- `notaryScripts` (Step 6 DocuSign / notary paths)
+- `gapScripts` (Step 7 GAP pitches)
 - `checklist` & `checkCues`
-- `prompts` & `promptCues`
-- `rebuttals` (both short cues and full responses)
-- `options` (pivot cues and full talk tracks)
+- `rebuttals` and `aioa`
 
 After editing `steps.json`, reload the extension from `chrome://extensions`.
 
@@ -71,4 +84,4 @@ After editing `steps.json`, reload the extension from `chrome://extensions`.
 
 The extension uses `chrome.storage.local` to remember the active mode (`live` vs. `practice`), active step, checked items, deal numbers, and notes. Choosing **New** asks for a confirmation click before clearing the current call. The extension does not transmit borrower data anywhere.
 
-Any production use in a mortgage environment should be reviewed for company policy, compliance language, privacy requirements, and state-specific disclosure rules.
+Any production use should be reviewed for company policy, compliance language, privacy requirements, and state-specific disclosure rules.
