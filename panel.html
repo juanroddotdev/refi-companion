@@ -18,7 +18,7 @@
                 type="button"
                 data-mode="live"
                 aria-pressed="true"
-                title="Live Call Mode: Sparse glanceable cues (Alt+M)"
+                title="Live Call Mode: Fast glanceable cues (Alt+M)"
               >
                 <span class="live-pulse" aria-hidden="true"></span>
                 Live
@@ -29,7 +29,7 @@
                 type="button"
                 data-mode="practice"
                 aria-pressed="false"
-                title="Practice Mode: Full verbatim scripts & checklists (Alt+M)"
+                title="Practice Mode: Full verbatim Gravity Lending script (Alt+M)"
               >
                 Practice
               </button>
@@ -50,7 +50,7 @@
               id="new-call"
               class="secondary-button"
               type="button"
-              title="Reset call notes & checklist"
+              title="Reset call checks & scratchpad"
             >
               New
             </button>
@@ -58,14 +58,12 @@
               id="copy-notes"
               class="primary-button"
               type="button"
-              title="Copy formatted CRM note (Cmd/Ctrl+Shift+C)"
+              title="Copy conversation notes (Cmd/Ctrl+Shift+C)"
             >
-              Copy CRM
+              Copy Notes
             </button>
           </div>
         </div>
-
-        <div id="live-metrics-strip" class="metrics-strip" aria-live="polite"></div>
 
         <nav id="step-list" class="step-rail" aria-label="Script steps"></nav>
       </header>
@@ -84,7 +82,7 @@
       <section id="notes-dock" class="notes-panel" aria-labelledby="notes-title">
         <div class="notes-header">
           <div class="notes-title-group">
-            <h2 id="notes-title">Scratchpad</h2>
+            <h2 id="notes-title">Call Scratchpad</h2>
             <span id="copy-status" class="copy-status" role="status"></span>
           </div>
           <button
@@ -99,62 +97,14 @@
         </div>
 
         <div id="notes-body" class="notes-body">
-          <div class="notes-tabs" role="tablist" aria-label="Note categories">
-            <button
-              type="button"
-              class="note-tab"
-              role="tab"
-              data-note-tab="goal"
-              aria-selected="true"
-            >
-              Goal &amp; Story
-            </button>
-            <button
-              type="button"
-              class="note-tab"
-              role="tab"
-              data-note-tab="loan"
-              aria-selected="false"
-            >
-              Loan Notes
-            </button>
-            <button
-              type="button"
-              class="note-tab"
-              role="tab"
-              data-note-tab="next"
-              aria-selected="false"
-            >
-              Next Step
-            </button>
-          </div>
-
-          <div class="note-panes">
-            <label class="note-pane" data-note-pane="goal">
-              <span class="visually-hidden">Borrower goal</span>
-              <textarea
-                id="goal-note"
-                rows="2"
-                placeholder="Goal, payment comfort, keep vs trade, dealer warranty..."
-              ></textarea>
-            </label>
-            <label class="note-pane" data-note-pane="loan" hidden>
-              <span class="visually-hidden">Loan details</span>
-              <textarea
-                id="loan-note"
-                rows="2"
-                placeholder="Y/M/M, miles, mods, credit union, term/rate, option selected..."
-              ></textarea>
-            </label>
-            <label class="note-pane" data-note-pane="next" hidden>
-              <span class="visually-hidden">Objections / next step</span>
-              <textarea
-                id="next-note"
-                rows="2"
-                placeholder="Spouse, docs/notary path, GAP decision, follow-up..."
-              ></textarea>
-            </label>
-          </div>
+          <label class="note-pane">
+            <span class="visually-hidden">Call scratchpad notes</span>
+            <textarea
+              id="call-note"
+              rows="3"
+              placeholder="Goal, payment comfort, keep vs trade, warranty, objections / next step..."
+            ></textarea>
+          </label>
         </div>
       </section>
     </main>
