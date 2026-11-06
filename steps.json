@@ -3,253 +3,310 @@
     "id": "intro",
     "number": 1,
     "title": "Intro",
-    "subtitle": "Open the door. Build trust.",
-    "goal": "Confirm who you are speaking with, set the purpose of the call, and earn permission to ask questions.",
-    "cue": "Hold numbers → Understand goal first",
-    "askCue": "What made you look at a refi right now?",
-    "script": "Before I throw numbers at you, I want to make sure I understand what you are trying to accomplish and what would actually make this worth it for you.",
+    "subtitle": "Intro & Qualification",
+    "goal": "Confirm identity, match the current loan on the portal, and run the 7 qualification checks.",
+    "liveCue": "Greeting → DOB Check → Confirm [Current Lender] & [Current Payment]",
+    "liveAsk": "Can you confirm your date of birth?",
+    "script": "Hello, [Customer]?\n\nHi [Customer], this is [LO Name] with Gravity Lending. I'm following up on the application we received to refinance your [Vehicle].\n\nGreat. To ensure I'm speaking with [Customer Name], can you please confirm your date of birth?\n\nJust to make sure we're looking at the right loan, I'm showing your current loan is with [Current Lender], with monthly payments reporting at [Current Payment]. Is that correct?",
     "checklist": [
-      "Confirm borrower name",
-      "Confirm property address",
-      "Provide required licensing or company disclosure",
-      "State the purpose of the call",
-      "Ask permission to review their refinance goals"
+      "Complete identity verification (DOB)",
+      "Confirm current lender & monthly payment",
+      "Valid [state] driver's license",
+      "Co-signer on loan or title?",
+      "Primary driver of the vehicle?",
+      "Registered & titled in [state]?",
+      "Clean title for the vehicle?",
+      "Any additional liens against the vehicle?",
+      "US Citizen or Permanent Resident?"
     ],
     "checkCues": [
-      "Name",
-      "Property",
-      "NMLS Disclosure",
-      "Call Purpose",
-      "Permission"
+      "DOB Verified",
+      "Lender & Pmt",
+      "Valid DL",
+      "Co-Signer?",
+      "Primary Driver",
+      "Reg & Titled",
+      "Clean Title",
+      "No Extra Liens",
+      "US Citizen / PR"
     ],
     "prompts": [
-      "What made you open to looking at a refinance right now?",
-      "If this call goes well, what would you want to walk away knowing?"
-    ],
-    "promptCues": [
-      "Why refi now?",
-      "Ideal outcome today?"
+      "Do you have a valid [state] Drivers License?",
+      "Do you currently have a co-signer on the loan or title?",
+      "Are you the primary driver of this vehicle?",
+      "Is the vehicle currently registered & titled in [state]?",
+      "Is this a clean title for the vehicle?",
+      "Are there any additional liens against the vehicle?",
+      "Are you a US Citizen? (if no) Are you a Permanent Resident?"
     ]
   },
   {
     "id": "discovery",
     "number": 2,
     "title": "Discovery",
-    "subtitle": "Ask. Listen. Understand.",
-    "goal": "Collect the facts and the motivation before discussing loan structure.",
-    "cue": "Diagnose problem before quoting rate",
-    "askCue": "What happens if you keep the loan as-is?",
-    "script": "The numbers only matter if they solve the right problem, so I am going to ask a few quick questions first.",
+    "subtitle": "Discovery & Vehicle Verification",
+    "goal": "Understand the borrower's goal, payment comfort, other obligations, and vehicle/VSC history.",
+    "liveCue": "1. Refi Goal · 2. Comfort w/ $[Current Pmt] · 3. Other Obligations · 4. Y/M/M & Odometer",
+    "liveAsk": "What exactly are you wanting to accomplish with your refinance?",
+    "script": "Perfect. Now, just to get a better understanding of where we can help...\n\n• Goal: What exactly are you wanting to accomplish with your refinance?\n• Payment: Understood. How comfortable are you with the current payment of $[___]?\n• Life: Outside of the refinance, were there any other financial obligations you were wanting to address as well?\n\nThe vehicle we're refinancing is your [Year / Make / Model] with estimated miles around [___], is that correct?\nWhat's the closest mileage you can give me to the odometer?",
     "checklist": [
-      "Identify primary goal",
-      "Capture current balance",
-      "Capture current rate",
-      "Capture current payment",
-      "Ask what happens if they do nothing"
+      "Ask primary refinance goal",
+      "Ask comfort with current payment",
+      "Ask about other financial obligations",
+      "Confirm Year / Make / Model & exact odometer",
+      "Ask how they like the vehicle so far",
+      "Ask how long they intend on keeping it",
+      "Ask if they bought a dealership warranty (VSC)",
+      "Ask about modifications (lift / aftermarket rims-tires)"
     ],
     "checkCues": [
-      "Goal",
-      "Balance",
-      "Rate",
-      "Payment",
-      "Cost of Inaction"
+      "Refi Goal",
+      "Pmt Comfort",
+      "Other Obligations",
+      "Y/M/M & Miles",
+      "Likes Vehicle?",
+      "Keep vs Trade",
+      "Dealer VSC?",
+      "Lift / Rims-Tires?"
     ],
     "prompts": [
-      "Is your main priority lowering payment, shortening term, or accessing cash?",
-      "What is your current monthly mortgage payment?",
-      "Do you know your current rate and approximate balance?",
-      "What would need to improve for this to feel worth moving forward?"
-    ],
-    "promptCues": [
-      "Payment, Term, or Cash?",
-      "What makes it worth it?",
-      "Cost of doing nothing?"
+      "How are you liking the vehicle so far?",
+      "Understood, how long do you intend on keeping the vehicle?",
+      "Did you end up buying any type of additional protection from the Dealership like a warranty?",
+      "Have you made any type of modifications on the vehicle, specifically a lift or aftermarket rims/tires?"
     ]
   },
   {
     "id": "recap",
     "number": 3,
     "title": "Recap",
-    "subtitle": "Clarify. Confirm. Align.",
-    "goal": "Repeat the borrower goal back before presenting any solution.",
-    "cue": "Confirm [goal] → Target [benefit]",
-    "askCue": "\"Did I get that right?\" (Wait for Yes)",
-    "script": "Just to make sure we are on the same page, your main priority is [goal], and ideally we want to get [payment, cash, term, or certainty outcome]. Did I get that right?",
+    "subtitle": "Recap & Set the Stage",
+    "goal": "Repeat back their goal & payment preference, explain simple-interest with no prepay penalty, and set the stage for protection.",
+    "liveCue": "Recap Goal & Pmt → [Credit Union] Simple-Interest ($0 Prepay Penalty — pay fast, trade, or refi anytime)",
+    "liveAsk": "Does that make sense?",
+    "script": "All right, I want to make sure we're on the same page.\n• You mentioned your main goal for the refinance is to [Goal].\n• As far as the payment goes, you'd prefer [Payment Preference].\n\nThe approval we received is through [Credit Union Name]. The lender is giving us a lot of flexibility on how we can structure your loan.\n\nThis lender uses what's called a simple-interest loan, meaning interest is only calculated on the outstanding principal. This also means... NO prepayment penalties, giving you the freedom to pay the loan down as fast as you want to. Same would apply if you decide to trade in the vehicle, or even refinance it again.\n\nDoes that make sense?",
+    "stageScripts": {
+      "keep-bought": {
+        "label": "Keeping + Bought VSC",
+        "liveCue": "Keeping + Overpriced Dealer VSC → Replace for Longer Coverage + Dealer Refund Check Mailed to You",
+        "script": "Now one of the things I wanted to consider was the fact that you were planning on keeping the vehicle long term, and that you bought a warranty from the dealership which obviously, in most cases, means they probably overcharged you for it.\n\nWith that said, one of the options I'm going to go over will include an option to replace the existing protection which should not only cover you for a longer period of time but also help you get a sizable refund back from the dealership. The refund will typically be a check mailed out to you allowing you to spend that money however you like."
+      },
+      "trade-bought": {
+        "label": "Trading + Bought VSC",
+        "liveCue": "Trading + Bought VSC → Avoid Lowball Trade on Repairs + Replace VSC + Dealer Refund Check for Next Car",
+        "script": "Now one of the things I wanted to consider was that you were thinking about trading in the vehicle in the next few years, and that you bought a warranty from the dealership.\n\nBut I do agree it is a very smart decision to have the vehicle covered. I can't tell you how many times customers try to trade in the vehicle while needing repairs and end up getting low balled on the value. With that said, one of the options I'm going to go over will include an option to replace the existing protection which should not only cover you for a longer period of time in case you change your mind... but also help you get a sizable refund back from the dealership. The refund will typically be a check mailed out to you allowing you to spend that money however you like.. maybe even with putting it towards the next car."
+      },
+      "keep-nobought": {
+        "label": "Keeping + No VSC",
+        "liveCue": "Keeping + No Dealer VSC (Saved 3–4× Markup) → Include Protection for Next [___] Yrs",
+        "script": "Now one of the things I wanted to consider was the fact that you were planning on keeping the vehicle long term, and you did not purchase any type of warranty from the dealership. Which is probably a good thing since they would've charged you 3–4 times the actual cost.\n\nWith that said, one of the options I'm going to go over will include protection for the vehicle, that would cover you for the next [___] years.. that way if any repairs pop up ..you're covered."
+      },
+      "trade-nobought": {
+        "label": "Trading + No VSC",
+        "liveCue": "Trading + No VSC → Protect Trade Value Until Trade-In + Refundable Unused Portion",
+        "script": "Now one of the things I wanted to consider was that you were thinking about trading in the vehicle in the next few years, and you did not purchase any type of warranty from the dealership.\n\nWith that said, one option will include protection until you trade it in. The last thing you want is a repair bill or a dealership lowballing your trade because of an issue. The other great thing is that it would be a refundable plan, meaning if it goes unused.. you can just call us back to get a refund on the unused portion of it."
+      }
+    },
     "checklist": [
-      "Restate the borrower's goal",
-      "Confirm the target outcome",
-      "Confirm any constraints",
-      "Get verbal alignment before quoting numbers"
+      "Restate main refinance goal",
+      "Restate payment preference",
+      "Explain simple-interest & no prepayment penalty",
+      "Read matching Keep/Trade + VSC Set the Stage"
     ],
     "checkCues": [
-      "Restate Goal",
-      "Target Outcome",
-      "Constraints",
-      "Got \"Yes\""
-    ],
-    "prompts": [
-      "What is the most important part of this for you?",
-      "Is there anything I missed before I show you the option?"
-    ],
-    "promptCues": [
-      "#1 priority?",
-      "Anything missed?"
-    ]
-  },
-  {
-    "id": "set-stage",
-    "number": 4,
-    "title": "Set the Stage",
-    "subtitle": "Prepare their mind.",
-    "goal": "Explain how to evaluate the offer before showing the approval details.",
-    "cue": "Don't judge by rate alone → Judge by Payment + Cost + Break-Even",
-    "askCue": "Does it solve why you took the call?",
-    "script": "When we look at this, I do not want you judging it only by rate. I want us to look at payment impact, total cost, break-even, and whether it solves the reason you took this call.",
-    "checklist": [
-      "Remind them of their stated goal",
-      "Explain the evaluation criteria",
-      "Mention market movement without making predictions",
-      "Prepare them for payment, cost, and break-even discussion"
-    ],
-    "checkCues": [
-      "Remind Goal",
-      "Set Criteria",
-      "Market Context",
-      "Prep Break-Even"
-    ],
-    "prompts": [
-      "The question is not just 'is the rate lower?' The question is whether the structure improves your situation enough to justify moving forward."
-    ],
-    "promptCues": [
-      "Frame: Structure > Rate"
+      "Recap Goal",
+      "Recap Pmt",
+      "Simple Interest",
+      "Set the Stage"
     ]
   },
   {
     "id": "close",
-    "number": 5,
+    "number": 4,
     "title": "Mic Drop Close",
-    "subtitle": "Own the value. Make it easy.",
-    "goal": "Present the approval in a simple, confident way and ask for the decision.",
-    "cue": "Deliver [benefit] for [goal] → Ask & Pause",
-    "askCue": "\"Does this sound like the solution we discussed?\" (Mute & Wait)",
-    "script": "Based on what you told me, this option does what we set out to do: it targets [goal], gives you [benefit], and keeps the decision grounded in the numbers we just reviewed. Does this sound like the solution we discussed?",
+    "subtitle": "2-Option Pitch (VSC vs. Out-of-Pocket)",
+    "goal": "Recommend the term & rate, pitch Option 1 (with protection) vs. Option 2 (out-of-pocket repairs), ask which makes sense, and pause.",
+    "liveCue": "Recommend [___]-mo @ [___]% → Opt 1 (w/ Protection): $[___]/mo vs. Opt 2 (Out-of-Pocket Repairs): $[___]/mo",
+    "liveAsk": "Between those two, which one makes the most sense for you? (Stop talking.)",
+    "script": "Based on what you shared, the option I would personally recommend is the lender's [___]-month term option at [___]%.\n\n• Option 1 (recommended): Option 1 with protection would be $[___] per month.\n• Option 2 (alternative): Option 2 assuming that you are okay with paying out of pocket for your own repairs would be around $[___] per month.\n\nBetween those two, which one makes the most sense for you?\n\n(Stop talking. Let them answer.)",
     "checklist": [
-      "Present the proposed payment",
-      "Present rate and term",
-      "Explain closing costs or credits",
-      "Explain break-even if applicable",
-      "Ask a direct closing question, then pause"
+      "Recommend term and rate",
+      "Present Option 1 (with protection)",
+      "Present Option 2 (paying out of pocket for repairs)",
+      "Ask closing question & pause until they answer"
     ],
     "checkCues": [
-      "New Payment",
-      "Rate & Term",
-      "Cost / Credit",
-      "Break-Even",
+      "Term & Rate",
+      "Option 1 (w/ VSC)",
+      "Option 2 (No VSC)",
       "Ask & Pause"
-    ],
-    "prompts": [
-      "Monthly savings:",
-      "New rate and term:",
-      "Break-even period:",
-      "Cash to close or lender credit:"
     ]
   },
   {
     "id": "rebuttal",
-    "number": 6,
+    "number": 5,
     "title": "Rebuttal Hub",
-    "subtitle": "Play defense. Remove doubt.",
-    "goal": "Address hesitation without sounding defensive or dismissive.",
-    "cue": "Validate → Re-anchor to [goal] → Ask follow-up",
-    "script": "Most objections are requests for more certainty. Slow down, validate the concern, and bring the conversation back to the borrower's original goal.",
+    "subtitle": "Rebuttal / Pivot (AIOA Framework)",
+    "goal": "Only if they hesitate. Your best rebuttal is their own Recap. Use AIOA to stay calm, curious, and controlled.",
+    "liveCue": "AIOA · Agree & Acknowledge → Isolate → Overcome (Use Their Recap) → Ask",
+    "liveAsk": "Knowing that, are you comfortable moving forward?",
+    "script": "COACH: Only if they hesitate. Your best rebuttal is their own Recap.\nAIOA gives every LO a simple repeatable structure so the call stays calm, curious, and controlled instead of sounding like a canned rebuttal.",
+    "aioa": [
+      {
+        "letter": "A",
+        "label": "Agree & Acknowledge",
+        "purpose": "Validate the concern first. Lower resistance before solving.",
+        "example": "\"I completely understand why you'd feel that way.\""
+      },
+      {
+        "letter": "I",
+        "label": "Isolate",
+        "purpose": "Find the real issue underneath the first objection.",
+        "example": "\"Besides the payment, is there anything else holding you back?\""
+      },
+      {
+        "letter": "O",
+        "label": "Overcome",
+        "purpose": "Answer the actual concern with clarity, education, options, or a reframe.",
+        "example": "\"Here's why this still helps your overall financial picture...\""
+      },
+      {
+        "letter": "A",
+        "label": "Ask",
+        "purpose": "Confirm resolution and move the conversation forward.",
+        "example": "\"Knowing that, are you comfortable moving forward?\""
+      }
+    ],
     "rebuttals": [
       {
-        "id": "whats-the-rate",
-        "label": "Just tell me the rate",
-        "cue": "Need 60s for balance & goal → Quote real numbers, not teaser",
-        "askCue": "Main goal: drop payment or pull cash out?",
-        "response": "I will share the exact rate right now—I just need 60 seconds to confirm your balance and goal so I quote you a real, accurate structure instead of a bait-and-switch teaser.",
-        "followUp": "Are you mainly looking to drop the monthly payment or pull cash out?"
+        "id": "payment-high",
+        "label": "Payment / Rate",
+        "liveCue": "Agree → Isolate besides payment → Re-anchor to their Recap goal + Option 1 vs Option 2",
+        "liveAsk": "Besides the payment, is there anything else holding you back?",
+        "response": "I completely understand why you'd feel that way. Besides the payment, is there anything else holding you back? Here's why this still helps your overall financial picture: we structured Option 1 around the exact goal you shared with protection built in, and Option 2 is right there if you'd rather keep the payment lower and cover repairs out of pocket.",
+        "followUp": "Knowing that, which of the two options are you more comfortable moving forward with?"
       },
       {
-        "id": "rates-drop",
-        "label": "Rates might drop",
-        "cue": "No one can time market → Capture [benefit] now, refi again later if rates drop",
-        "askCue": "Worth solving the monthly payment today while keeping flexibility?",
-        "response": "That is a fair thought. Since no one can guarantee future rates, I would look at what this solves today and whether the savings or structure gives you enough benefit now.",
-        "followUp": "If rates improved later and you still had flexibility, would solving the current payment issue now still be worth comparing?"
+        "id": "vsc-cost",
+        "label": "Don't want VSC",
+        "liveCue": "Agree → Isolate cost vs value → 1/3 dealer markup + dealer refund check + refundable unused portion",
+        "liveAsk": "Besides the protection cost, is there anything else holding you back?",
+        "response": "I completely understand why you'd feel that way. Besides the protection cost, is there anything else holding you back? Remember what you shared about keeping/trading the vehicle — dealer warranties cost 3–4× more, replacing an existing one gets you a refund check mailed back, and if you don't use it, the unused portion is refundable.",
+        "followUp": "Knowing it protects your pocket and is refundable, are you comfortable keeping Option 1?"
       },
       {
-        "id": "costs-high",
-        "label": "Closing costs are high",
-        "cue": "Judge by break-even vs. how long you'll keep the loan",
-        "askCue": "Want to see a lender-credit option with $0 out-of-pocket?",
-        "response": "I agree costs matter. The way I would judge it is by the break-even and whether the monthly or long-term benefit outweighs the cost over the time you expect to keep the loan.",
-        "followUp": "Would it help if I showed a lender-credit version with less out-of-pocket cost?"
+        "id": "extend-term",
+        "label": "Longer term",
+        "liveCue": "Agree → Isolate term → Simple-interest loan ($0 prepay penalty — pay faster or trade anytime)",
+        "liveAsk": "Knowing you can pay it down anytime with zero penalty, are you comfortable moving forward?",
+        "response": "I completely understand why you'd feel that way. Besides the term, is there anything else holding you back? Because this credit union uses a simple-interest loan with zero prepayment penalties, you have complete freedom to pay it down as fast as you want, trade it in, or refinance again anytime.",
+        "followUp": "Knowing you're never locked into the full term, are you comfortable moving forward?"
       },
       {
         "id": "spouse",
-        "label": "Need to ask spouse",
-        "cue": "100% agree → Let's build a 3-bullet summary together for them",
-        "askCue": "What is the #1 question they will ask you first?",
-        "response": "Absolutely. This is a household decision. Let me help you make that conversation simple by summarizing the goal, the payment impact, the costs, and the next step.",
-        "followUp": "What is the biggest question they will probably ask first?"
+        "label": "Ask spouse",
+        "liveCue": "Agree → Isolate → Summarize Recap Goal + 2 Options → Send docs to review together before signing",
+        "liveAsk": "What is the #1 question they will probably ask first?",
+        "response": "I completely understand — this is a household decision. Besides reviewing it together, is there anything else holding you back? The next step is simply emailing the itemized documents over so the two of you can review everything in writing before you sign off on anything.",
+        "followUp": "What is the biggest question they will probably ask first so I can highlight it for you?"
       },
       {
-        "id": "reset-term",
-        "label": "Do not reset term",
-        "cue": "Don't have to do 30yr → Compare custom 20yr/15yr or prepay principal",
-        "askCue": "Optimize for lowest monthly payment or lowest total interest?",
-        "response": "That makes sense. Resetting the term is not the only way to structure this. We can compare a shorter term or payment-focused option and look at total interest.",
-        "followUp": "Would you rather optimize for lowest payment or lowest total interest?"
-      },
-      {
-        "id": "shop-around",
-        "label": "Shopping other lenders",
-        "cue": "Smart to compare → Compare same-day locked Loan Estimates (watch hidden points)",
-        "askCue": "Do you have a locked Loan Estimate from them, or just a verbal quote?",
-        "response": "Smart move—you should compare. Just make sure you compare locked Loan Estimates on the same day with the same points vs. lender credit so you do not get burned by hidden fees.",
-        "followUp": "Have they given you an official locked Loan Estimate yet, or just a verbal quote?"
+        "id": "shop-wait",
+        "label": "Wait / shop",
+        "liveCue": "Agree → Isolate → Approval is live now w/ $0 prepay flexibility → Send docs to review",
+        "liveAsk": "Are you comfortable getting the documents sent over so you can review them in writing?",
+        "response": "I completely understand wanting to be sure. Besides looking around, is there anything else holding you back? We already have this credit union approval structured around your goal, and sending the documents over just lets you review the exact numbers in writing before signing.",
+        "followUp": "Knowing that, are you comfortable having me send the documents over to review?"
       }
     ]
   },
   {
-    "id": "pivot",
-    "number": 7,
-    "title": "Pivot Options",
-    "subtitle": "Find another path to yes.",
-    "goal": "Offer an alternate structure when the first option does not fit.",
-    "cue": "Don't end the call → Pivot the loan structure",
-    "script": "If the first structure is close but not quite right, pivot the loan design instead of ending the conversation.",
-    "options": [
-      {
-        "id": "lender-credit",
-        "title": "Lender Credit",
-        "description": "Trade a slightly higher rate for lower upfront cost when cash to close is the blocker.",
-        "cue": "Bump rate slightly → Lender credit covers fees → Immediate break-even",
-        "talkTrack": "If keeping costs down is the priority, we can bump the rate slightly and use a lender credit to cover most or all of the closing costs—shortening your break-even right away."
+    "id": "docwalk",
+    "number": 6,
+    "title": "DocWalk",
+    "subtitle": "Application, DL, Residency, Employment & Notary",
+    "goal": "Verify email, driver's license, MLA, maiden name, 2-year residency & employment, insurance, and explain the 2-email doc process.",
+    "liveCue": "Verify Email → DL (Issue/Exp first, then DL# & Exact Name) → MLA & Maiden Name → 2yr Addr & Job → Full Cov Ins",
+    "liveAsk": "I'm showing your email listed is [verify email]. Is that correct?",
+    "script": "Understood. So from here, the next step will be to send you the documents to review before you sign off on anything. Documents will be sent over by email — I'm showing your email listed is [verify customer email]. Is that correct?\n\n• Driver's License: Confirm valid [state] DL → Ask Issue & Expiration Date first (so they pull out the ID) → Repeat back DL Number → Confirm exact First / Middle / Last / Suffix spelling.\n• Military Lending Act: Are you or your spouse or a dependent of Active Duty Military?\n• Security Question: What would you like for us to list as Mother's Maiden Name?\n• Residency (2 full yrs): Street, Unit, City, State, Zip, Years + Months, Rent/Own, Monthly Payment.\n• Employment (2 full yrs): Type, Employer, Occupation, Work Phone, Years + Months, Gross Monthly Income (confirm what that equates to yearly), W2 vs Self-Employed.\n• Insurance: Full coverage required → Deductible at or under [max deductible] → Carrier name → Any other insured drivers on policy? (Debt Cancellation discovery).",
+    "checklist": [
+      "Verify customer email",
+      "DL Issue & Expiration dates (repeat back)",
+      "DL ID Number (repeat back)",
+      "Exact Name spelling on DL (First / Mid / Last / Suffix)",
+      "Military Lending Act (Active Duty / Spouse / Dependent)",
+      "Mother's Maiden Name security question",
+      "2 Full Years Residency (Address, Yrs/Mos, Rent/Own, Pmt)",
+      "2 Full Years Employment (Employer, Yrs/Mos, Gross Mo & Yr, W2/Self)",
+      "Full Coverage Insurance (Deductible ≤ Max, Carrier, Other Drivers)",
+      "Explain DocuSign + Notary / Lending Lounge process"
+    ],
+    "checkCues": [
+      "Email",
+      "DL Issue/Exp",
+      "DL Number",
+      "Exact Name",
+      "MLA Check",
+      "Maiden Name",
+      "2yr Residency",
+      "2yr Employment",
+      "Insurance / Ded",
+      "2-Email Process"
+    ],
+    "notaryScripts": {
+      "standard": {
+        "label": "Standard / Lending Lounge",
+        "liveCue": "Email 1: DocuSign (Last 4 SSN, or Full SSN if FourLeaf) · Email 2: Lending Lounge — Print 1-Sided, Sign Xs, Ship w/ Prepaid Label (or Scan)",
+        "script": "From here you will receive 2 emails. The first will be DocuSign — are you familiar with DocuSign? The DocuSign will contain all the loan information itemized out for you to review and sign electronically. The way you will access the DocuSign will be with the last 4 of your SSN (IF FOURLEAF: FULL SSN NO DASHES OR SPACES).\n\nThe second email you will receive will be state and title documents. Within the email there is a link to our secure portal called Lending Lounge. From there, you will need to print these out single sided, hand signed on all Xs, and shipped back to us with the prepaid label we provided so we cover the shipping cost. Scanned back to us — do you have access to a scanner?\n\nThe Lending Lounge is pretty cool — within this portal, you'll be able to upload any remaining documents we might need and keep an eye on where the loan process is at, basically like the Domino's pizza tracker."
       },
-      {
-        "id": "shorter-term",
-        "title": "Shorter Term",
-        "description": "Compare a 20-year or 15-year term when the borrower is worried about resetting the clock.",
-        "cue": "Switch to 20yr / 15yr → Keep payoff clock intact + huge interest savings",
-        "talkTrack": "Instead of resetting back to 30 years, let's look at a 20- or 15-year custom term so you shave years off your mortgage and save tens of thousands in interest."
+      "proof": {
+        "label": "Proof Online Notary ($30)",
+        "liveCue": "Email 1: DocuSign · Email 2: Proof Online Notary — 24/7 5-Min Video Call on Phone Camera ($30 fee)",
+        "script": "From here you will receive 2 emails. The first will be DocuSign (access with last 4 of SSN, or Full SSN if FourLeaf).\n\nOnce DocuSign is completed, the second email you'll receive will be a link to what's called the 'Proof Online Notary' — this is the way [state] likes to handle their titling change documents. Everything is done via a quick five minute video call with an online notary. That's available 24/7 so whenever you have the time, just make sure you can be on your phone and in front of a camera. They'll take care of all the documents we'll need and get those sent over as soon as you're done. There is a $30 charge to use the service but it's quick, easy, and ends up being about the same cost as having to find an in-person appointment."
       },
-      {
-        "id": "payment-focus",
-        "title": "Payment Focus",
-        "description": "Optimize for monthly relief when cash flow is the primary goal.",
-        "cue": "Max out monthly cash flow now → Prepay principal anytime with $0 penalty",
-        "talkTrack": "Let's stretch the term to maximize monthly cash-flow relief right now—you can always prepay principal whenever you want with zero penalty."
-      },
-      {
-        "id": "follow-up-plan",
-        "title": "Follow-Up Plan",
-        "description": "Set a specific date and reason to reconnect if the borrower is not ready today.",
-        "cue": "Book 10-min call tomorrow + set rate-watch alert",
-        "talkTrack": "Let's lock in a 10-minute follow-up call for tomorrow after you've reviewed the numbers together, and I will set a rate-watch alert on your file in the meantime."
+      "longpen": {
+        "label": "LongPen Notary (TX)",
+        "liveCue": "Email 1: DocuSign · Email 2: LongPen TX — 5-Min Video Call w/ Processor (Lock in Appointment Now)",
+        "script": "From here you will receive 2 emails. The first will be DocuSign (access with last 4 of SSN, or Full SSN if FourLeaf).\n\nOnce DocuSign is completed, the second email you'll receive will be a link to what's called the 'LongPen Notary' — this is the way TX likes to handle their titling change documents. Everything is done via a quick five minute video call with one of our processors. They'll take care of all the documents we'll need and you're all done the same day.\n\nLet's get that locked in now just to make sure it's on your schedule. I will also send you an email with steps on how to complete documents as a reference point."
       }
-    ]
+    }
+  },
+  {
+    "id": "qa",
+    "number": 7,
+    "title": "Quality Assurance",
+    "subtitle": "Final Loan Breakdown & Assuming the GAP",
+    "goal": "Re-pitch VSC via AIOA if declined, read back the itemized approval numbers from the portal, and pitch Assuming the GAP.",
+    "liveCue": "If No VSC: Re-Pitch w/ AIOA → Read Back: [Lender] · [Term] mos · [Rate]% · [APR]% · New Pmt $[___] (Itemize VSC, Products, Title Fee, Lender Fee)",
+    "liveAsk": "Did you want to maintain GAP on the new loan going forward?",
+    "script": "Thank you. Last thing I want to do is make sure we're on the same page for what we're going to be sending over. Keep in mind if you decide you want to make any changes to the structure or to the terms of the loan, just let me know!\n\n(If customer did not take warranty, Rebuttal here using the AIOA framework)\n\n• Lender approving the loan: [Lender Name]\n• [##] Month Term · Interest Rate: [Approved Rate] · APR: [Listed APR]\n• New monthly payment: $[___]\n\nIn this payment will include:\n• Vehicle Service Protection total cost: $[___] (already accounted for in loan amount)\n• Other Products (GAP, DR, DC, or Edge): $[___] (already included in amount financed)\n• Title Fee to complete lien change: $[___] (already covered in loan amount)\n• Lender Fee from [Lender]: $[___] (already covered in amount financed)",
+    "checklist": [
+      "If VSC declined: Re-pitch using AIOA framework",
+      "Read back Lender, Term, Interest Rate, and APR",
+      "Read back New Monthly Payment",
+      "Itemize VSC & other product costs included",
+      "Itemize Title Fee & Lender Fee included",
+      "Deliver Assuming the GAP pitch & refund terms"
+    ],
+    "checkCues": [
+      "VSC AIOA (if no)",
+      "Lender / Term / APR",
+      "New Payment",
+      "VSC & Products $",
+      "Title & Lender Fee",
+      "Assumed GAP"
+    ],
+    "gapScripts": {
+      "backend": {
+        "label": "Back-End GAP Pitch",
+        "liveCue": "Old GAP Cancels at Payoff (Refund Check Possible) → Carry New GAP @ $[___]/mo · Refundable Pro-Rated (or 60-Day Opt-Out)",
+        "script": "The only other thing we didn't really discuss is GAP Coverage. I'd imagine you probably already have GAP protection on the current loan, however GAP is non-transferable meaning it would automatically cancel once we pay off your current loan.\n\nOnce closed out, you may be receiving a refund check for the unused portion of it. Now we do have the option to carry GAP on the new loan which would set the payment at $[___]/mo. Did you want to maintain GAP on the new loan going forward?\n\n• Refundable GAP: Refundable over the course of the loan (pro-rated refund if paid off early, traded, or refinanced).\n• Non-Refundable GAP: Refundable over the next 60 days — call me if you decide to opt out."
+      },
+      "included": {
+        "label": "Already Included GAP Pitch",
+        "liveCue": "Old GAP Cancels at Payoff (Refund Check Possible) → Payment Already Includes Replacement GAP ($[Gap Cost]) · Refundable Pro-Rated (or 60-Day)",
+        "script": "The only other thing we didn't really discuss is GAP Coverage. I'd imagine you probably already have GAP protection on the current loan, however GAP is non-transferable meaning it would automatically cancel once we pay off your current loan.\n\nOnce closed out, you may be receiving a refund check for the unused portion of it. Now the payment option I gave you already includes the option to replace GAP Coverage. GAP Coverage for your vehicle is $[Gap Cost].\n\n• Refundable GAP: Refundable over the course of the loan (pro-rated refund if paid off early, traded, or refinanced).\n• Non-Refundable GAP: Refundable over the next 60 days — call me if you decide to opt out."
+      }
+    }
   }
 ]

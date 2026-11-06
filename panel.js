@@ -1,47 +1,59 @@
-const GOAL_CHIPS = [
-  "Lower Payment",
-  "Cash-Out / Debt Consolidation",
-  "Shorten Term",
-  "Remove MI / Switch to Fixed"
-];
-
 const SHORT_STEP_LABELS = {
   intro: "Intro",
   discovery: "Discov",
   recap: "Recap",
-  "set-stage": "Stage",
   close: "Close",
-  rebuttal: "Object",
-  pivot: "Pivot"
+  rebuttal: "Rebut",
+  docwalk: "Docs",
+  qa: "QA"
 };
+
+const HORIZON_CHOICES = [
+  { value: "keep", label: "Keeping Long-Term" },
+  { value: "trade", label: "Trading in Few Yrs" }
+];
+
+const VSC_CHOICES = [
+  { value: "bought", label: "Bought Dealer VSC" },
+  { value: "none", label: "No Dealer VSC" }
+];
+
+const NOTARY_CHOICES = [
+  { value: "standard", label: "Standard / Lounge" },
+  { value: "proof", label: "Proof Online ($30)" },
+  { value: "longpen", label: "LongPen (TX)" }
+];
+
+const GAP_PITCH_CHOICES = [
+  { value: "backend", label: "Back-End GAP Pitch" },
+  { value: "included", label: "Already Included GAP" }
+];
 
 const defaultState = {
   viewMode: "live",
   activeStepId: "",
   checkedItems: {},
   selectedRebuttalId: "",
-  selectedPivotId: "",
-  activeNoteTab: "goal",
   notesCollapsed: false,
-  deal: {
-    primaryGoal: "",
-    currentBalance: "",
-    currentRate: "",
-    currentPayment: "",
-    proposedRate: "",
-    proposedTerm: "30 yr",
-    proposedPayment: "",
-    netCost: "",
-    cashOut: ""
+  branches: {
+    horizon: "keep",
+    dealerVsc: "bought",
+    notaryMode: "standard",
+    gapPitchMode: "backend"
   },
-  notes: {
-    goal: "",
-    loan: "",
-    next: ""
-  }
+  scratchpad: ""
 };
 
-const LEGACY_TIMER_KEYS = ["timerRunning", "timerStartedAt", "elapsedBeforeStart"];
+const LEGACY_KEYS = [
+  "timerRunning",
+  "timerStartedAt",
+  "elapsedBeforeStart",
+  "deal",
+  "notes",
+  "activeNoteTab",
+  "selectedPivotId"
+];
+const LEGACY_STEP_IDS = ["set-stage", "pivot"];
 const SAVE_DELAY_MS = 250;
 const CLEAR_CONFIRM_MS = 5000;
 
@@ -53,15 +65,12 @@ const elements = {
   copyStatus: document.querySelector("#copy-status"),
   quickObjectionToggle: document.querySelector("#quick-objection-toggle"),
   quickObjectionDrawer: document.querySelector("#quick-objection-drawer"),
-  liveMetricsStrip: document.querySelector("#live-metrics-strip"),
   stepList: document.querySelector("#step-list"),
   stepDetail: document.querySelector("#step-detail"),
   stepStatus: document.querySelector("#step-status"),
   toggleNotes: document.querySelector("#toggle-notes"),
   notesBody: document.querySelector("#notes-body"),
-  goalNote: document.querySelector("#goal-note"),
-  loanNote: document.querySelector("#loan-note"),
-  nextNote: document.querySelector("#next-note")
+  callNote: document.querySelector("#call-note")
 };
 
 let steps = [];
@@ -83,73 +92,29 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function parseNumber(value) {
-  if (typeof value !== "string" && typeof value !== "number") {
-    return NaN;
+function highlightBracketTokens(rawText) {
+  if (!rawText) {
+    return "";
   }
-  const cleaned = String(value).replace(/[^0-9.-]/g, "");
-  if (!cleaned) {
-    return NaN;
-  }
-  const parsed = Number.parseFloat(cleaned);
-  return Number.isFinite(parsed) ? parsed : NaN;
+  return escapeHtml(rawText).replace(
+    /\[([^\]]+)\]/g,
+    '<span class="dynamic-token">[$1]</span>'
+  );
 }
 
-function formatCurrency(amount) {
-  if (!Number.isFinite(amount)) {
-    return "—";
+function getVscBranchKey(branches = state.branches) {
+  const horizon = branches?.horizon || "keep";
+  const vsc = branches?.dealerVsc || "bought";
+  if (horizon === "keep" && vsc === "bought") {
+    return "keep-bought";
   }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0
-  }).format(Math.round(amount));
-}
-
-function computeDealMetrics(deal = state.deal) {
-  const currentPayment = parseNumber(deal.currentPayment);
-  const proposedPayment = parseNumber(deal.proposedPayment);
-  const netCost = parseNumber(deal.netCost);
-  const cashOut = parseNumber(deal.cashOut);
-
-  const monthlySavings =
-    Number.isFinite(currentPayment) && Number.isFinite(proposedPayment)
-      ? currentPayment - proposedPayment
-      : NaN;
-
-  const annualSavings = Number.isFinite(monthlySavings) ? monthlySavings * 12 : NaN;
-
-  let breakEvenLabel = "—";
-  let breakEvenMonths = NaN;
-
-  if (
-    Number.isFinite(netCost) &&
-    netCost <= 0 &&
-    Number.isFinite(monthlySavings) &&
-    monthlySavings > 0
-  ) {
-    breakEvenLabel = "Immediate (0 mos)";
-    breakEvenMonths = 0;
-  } else if (
-    Number.isFinite(netCost) &&
-    netCost > 0 &&
-    Number.isFinite(monthlySavings) &&
-    monthlySavings > 0
-  ) {
-    breakEvenMonths = Math.ceil(netCost / monthlySavings);
-    breakEvenLabel = `${breakEvenMonths} mo${breakEvenMonths === 1 ? "" : "s"}`;
+  if (horizon === "trade" && vsc === "bought") {
+    return "trade-bought";
   }
-
-  return {
-    currentPayment,
-    proposedPayment,
-    netCost,
-    cashOut,
-    monthlySavings,
-    annualSavings,
-    breakEvenMonths,
-    breakEvenLabel
-  };
+  if (horizon === "keep" && vsc === "none") {
+    return "keep-nobought";
+  }
+  return "trade-nobought";
 }
 
 async function loadSteps() {
@@ -167,38 +132,28 @@ async function loadSteps() {
 
 function getStoredState() {
   if (globalThis.chrome?.storage?.local) {
-    return chrome.storage.local.get(defaultState);
+    return chrome.storage.local.get(null);
   }
 
   const localState = JSON.parse(localStorage.getItem("refi-companion-state") || "{}");
   return Promise.resolve({ ...defaultState, ...localState });
 }
 
-function normalizeNotes(notes) {
-  return {
-    goal: typeof notes?.goal === "string" ? notes.goal : "",
-    loan: typeof notes?.loan === "string" ? notes.loan : "",
-    next: typeof notes?.next === "string" ? notes.next : ""
-  };
-}
-
-function normalizeDeal(deal) {
-  const fallback = defaultState.deal;
-  if (!deal || typeof deal !== "object") {
-    return structuredClone(fallback);
-  }
+function normalizeBranches(branches, legacyDeal) {
+  const fallback = defaultState.branches;
+  const source = branches && typeof branches === "object" ? branches : legacyDeal || {};
 
   return {
-    primaryGoal: typeof deal.primaryGoal === "string" ? deal.primaryGoal : "",
-    currentBalance: typeof deal.currentBalance === "string" ? deal.currentBalance : "",
-    currentRate: typeof deal.currentRate === "string" ? deal.currentRate : "",
-    currentPayment: typeof deal.currentPayment === "string" ? deal.currentPayment : "",
-    proposedRate: typeof deal.proposedRate === "string" ? deal.proposedRate : "",
-    proposedTerm:
-      typeof deal.proposedTerm === "string" && deal.proposedTerm ? deal.proposedTerm : "30 yr",
-    proposedPayment: typeof deal.proposedPayment === "string" ? deal.proposedPayment : "",
-    netCost: typeof deal.netCost === "string" ? deal.netCost : "",
-    cashOut: typeof deal.cashOut === "string" ? deal.cashOut : ""
+    horizon: ["keep", "trade"].includes(source.horizon) ? source.horizon : fallback.horizon,
+    dealerVsc: ["bought", "none"].includes(source.dealerVsc)
+      ? source.dealerVsc
+      : fallback.dealerVsc,
+    notaryMode: ["standard", "proof", "longpen"].includes(source.notaryMode)
+      ? source.notaryMode
+      : fallback.notaryMode,
+    gapPitchMode: ["backend", "included"].includes(source.gapPitchMode)
+      ? source.gapPitchMode
+      : fallback.gapPitchMode
   };
 }
 
@@ -219,26 +174,35 @@ function normalizeCheckedItems(checkedItems) {
   return normalized;
 }
 
-function stripLegacyState(storedState) {
-  const next = { ...storedState };
-  for (const key of LEGACY_TIMER_KEYS) {
-    delete next[key];
+function normalizeScratchpad(storedState) {
+  if (typeof storedState?.scratchpad === "string" && storedState.scratchpad.trim()) {
+    return storedState.scratchpad;
   }
+  if (storedState?.notes && typeof storedState.notes === "object") {
+    return [storedState.notes.goal, storedState.notes.loan, storedState.notes.next]
+      .filter((part) => typeof part === "string" && part.trim())
+      .join("\n");
+  }
+  return typeof storedState?.scratchpad === "string" ? storedState.scratchpad : "";
+}
 
-  next.viewMode = next.viewMode === "practice" ? "practice" : "live";
-  next.notes = normalizeNotes(next.notes);
-  next.deal = normalizeDeal(next.deal);
-  next.checkedItems = normalizeCheckedItems(next.checkedItems);
-  next.selectedRebuttalId =
-    typeof next.selectedRebuttalId === "string" ? next.selectedRebuttalId : "";
-  next.selectedPivotId =
-    typeof next.selectedPivotId === "string" ? next.selectedPivotId : "";
-  next.activeStepId = typeof next.activeStepId === "string" ? next.activeStepId : "";
-  next.activeNoteTab = ["goal", "loan", "next"].includes(next.activeNoteTab)
-    ? next.activeNoteTab
-    : "goal";
-  next.notesCollapsed = Boolean(next.notesCollapsed);
-  return next;
+function normalizeStoredState(storedState) {
+  return {
+    viewMode: storedState?.viewMode === "practice" ? "practice" : "live",
+    activeStepId:
+      typeof storedState?.activeStepId === "string" &&
+      !LEGACY_STEP_IDS.includes(storedState.activeStepId)
+        ? storedState.activeStepId
+        : "",
+    checkedItems: normalizeCheckedItems(storedState?.checkedItems),
+    selectedRebuttalId:
+      typeof storedState?.selectedRebuttalId === "string"
+        ? storedState.selectedRebuttalId
+        : "",
+    notesCollapsed: Boolean(storedState?.notesCollapsed),
+    branches: normalizeBranches(storedState?.branches, storedState?.deal),
+    scratchpad: normalizeScratchpad(storedState)
+  };
 }
 
 function writeSnapshot(snapshot) {
@@ -272,12 +236,12 @@ async function flushState(partialState = {}) {
   await persistState();
 }
 
-async function removeLegacyTimerKeys() {
+async function removeLegacyKeys() {
   if (!globalThis.chrome?.storage?.local) {
     return;
   }
 
-  await chrome.storage.local.remove(LEGACY_TIMER_KEYS);
+  await chrome.storage.local.remove(LEGACY_KEYS);
 }
 
 function isLiveMode() {
@@ -299,32 +263,6 @@ function getCheckedItems(stepId) {
   }
 
   return items.filter((item) => typeof item === "string");
-}
-
-function markChecklistItem(stepId, itemSubstring) {
-  const step = steps.find((entry) => entry.id === stepId);
-  if (!step?.checklist?.length) {
-    return;
-  }
-
-  const match = step.checklist.find((item) =>
-    item.toLowerCase().includes(itemSubstring.toLowerCase())
-  );
-  if (!match) {
-    return;
-  }
-
-  const checked = new Set(getCheckedItems(stepId));
-  if (!checked.has(match)) {
-    checked.add(match);
-    state = {
-      ...state,
-      checkedItems: {
-        ...state.checkedItems,
-        [stepId]: [...checked].sort()
-      }
-    };
-  }
 }
 
 function isStepComplete(step) {
@@ -349,104 +287,10 @@ function findSelectedRebuttal() {
   return all.find((rebuttal) => rebuttal.id === state.selectedRebuttalId) || null;
 }
 
-function interpolateTalkTrack(rawText, { short = false } = {}) {
-  if (!rawText) {
-    return "";
-  }
-
-  const { deal, notes } = state;
-  const metrics = computeDealMetrics(deal);
-  const goalText =
-    deal.primaryGoal ||
-    notes.goal.split(/[.,\n]/)[0]?.trim() ||
-    (short ? "Goal" : "your refinance goal");
-
-  let outcomeParts = [];
-  if (Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0) {
-    outcomeParts.push(
-      short
-        ? `Saves ${formatCurrency(metrics.monthlySavings)}/mo`
-        : `saving ${formatCurrency(metrics.monthlySavings)}/mo`
-    );
-  }
-  if (Number.isFinite(metrics.cashOut) && metrics.cashOut > 0) {
-    outcomeParts.push(
-      short
-        ? `${formatCurrency(metrics.cashOut)} Cash Out`
-        : `accessing ${formatCurrency(metrics.cashOut)} cash out`
-    );
-  }
-  if (deal.proposedRate) {
-    outcomeParts.push(
-      short
-        ? `${deal.proposedRate}% (${deal.proposedTerm})`
-        : `locking in ${deal.proposedRate}% (${deal.proposedTerm})`
-    );
-  }
-
-  const benefitText =
-    outcomeParts.join(" + ") ||
-    (short ? "Target Structure" : "a stronger monthly & long-term loan structure");
-
-  let html = escapeHtml(rawText);
-  html = html.replace(
-    /\[goal\]/gi,
-    `<span class="dynamic-token">${escapeHtml(short ? goalText : goalText.toLowerCase())}</span>`
-  );
-  html = html.replace(
-    /\[payment, cash, term, or certainty outcome\]/gi,
-    `<span class="dynamic-token">${escapeHtml(benefitText)}</span>`
-  );
-  html = html.replace(
-    /\[benefit\]/gi,
-    `<span class="dynamic-token">${escapeHtml(benefitText)}</span>`
-  );
-  return html;
-}
-
 function renderModeSwitch() {
   const live = isLiveMode();
   elements.modeLive.setAttribute("aria-pressed", live ? "true" : "false");
   elements.modePractice.setAttribute("aria-pressed", live ? "false" : "true");
-}
-
-function renderLiveMetricsStrip() {
-  const { deal } = state;
-  const metrics = computeDealMetrics(deal);
-  const badges = [];
-
-  if (deal.primaryGoal) {
-    badges.push(
-      `<span class="metric-badge">Goal: <strong>${escapeHtml(deal.primaryGoal)}</strong></span>`
-    );
-  }
-
-  if (deal.currentRate || deal.currentPayment) {
-    const ratePart = deal.currentRate ? `${escapeHtml(deal.currentRate)}%` : "";
-    const pmtPart = Number.isFinite(metrics.currentPayment)
-      ? formatCurrency(metrics.currentPayment)
-      : "";
-    const combined = [ratePart, pmtPart].filter(Boolean).join(" · ");
-    badges.push(`<span class="metric-badge">Curr: <strong>${combined}</strong></span>`);
-  }
-
-  if (Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0) {
-    badges.push(
-      `<span class="metric-badge metric-positive">Saves: <strong>${formatCurrency(
-        metrics.monthlySavings
-      )}/mo</strong> (${formatCurrency(metrics.annualSavings)}/yr)</span>`
-    );
-  }
-
-  if (metrics.breakEvenLabel !== "—") {
-    badges.push(
-      `<span class="metric-badge">Break-even: <strong>${escapeHtml(
-        metrics.breakEvenLabel
-      )}</strong></span>`
-    );
-  }
-
-  elements.liveMetricsStrip.innerHTML = badges.join("");
 }
 
 function renderStepList() {
@@ -480,8 +324,8 @@ function renderStepList() {
 function renderScriptOrCueCard({
   peekKey,
   label,
-  cueText,
-  askCueText,
+  liveCueText,
+  liveAskText,
   fullScriptText,
   followUpText,
   idAttr = ""
@@ -489,18 +333,19 @@ function renderScriptOrCueCard({
   const live = isLiveMode();
   const isPeekOpen = expandedPeeks.has(peekKey);
 
-  if (!live || !cueText) {
+  // Practice Mode: Full Verbatim Script
+  if (!live) {
     return `
-      <article class="script-card">
+      <article class="script-card script-card-practice">
         <div class="script-card-top">
           <span class="script-card-label">${escapeHtml(label)}</span>
         </div>
-        <p class="full-script-text" ${idAttr ? `id="${escapeHtml(idAttr)}"` : ""}>${interpolateTalkTrack(
-          fullScriptText
+        <p class="full-script-text" ${idAttr ? `id="${escapeHtml(idAttr)}"` : ""}>${highlightBracketTokens(
+          fullScriptText || liveCueText
         )}</p>
         ${
           followUpText
-            ? `<strong class="followup-heading">Follow-up question:</strong><p class="full-script-text">${escapeHtml(
+            ? `<strong class="followup-heading">Ask / Follow-Up:</strong><p class="full-script-text">${highlightBracketTokens(
                 followUpText
               )}</p>`
             : ""
@@ -509,10 +354,11 @@ function renderScriptOrCueCard({
     `;
   }
 
-  const askLine = askCueText || followUpText;
+  // Live Mode: Short Glanceable Cue + Optional Peek
+  const askLine = liveAskText || followUpText;
 
   return `
-    <article class="script-card">
+    <article class="script-card script-card-live">
       <div class="script-card-top">
         <span class="script-card-label">${escapeHtml(label)}</span>
         ${
@@ -529,23 +375,47 @@ function renderScriptOrCueCard({
             : ""
         }
       </div>
-      <p class="cue-headline" ${idAttr ? `id="${escapeHtml(idAttr)}"` : ""}>${interpolateTalkTrack(
-        cueText,
-        { short: true }
-      )}</p>
+      <p class="cue-headline cue-headline-live" ${
+        idAttr ? `id="${escapeHtml(idAttr)}"` : ""
+      }>${highlightBracketTokens(liveCueText || fullScriptText)}</p>
       ${
         askLine
-          ? `<p class="cue-ask"><span class="cue-ask-badge">Ask</span> <span>${escapeHtml(
+          ? `<p class="cue-ask"><span class="cue-ask-badge">Ask</span> <span>${highlightBracketTokens(
               askLine
             )}</span></p>`
           : ""
       }
       ${
         isPeekOpen && fullScriptText
-          ? `<div class="peek-script-box">${interpolateTalkTrack(fullScriptText)}</div>`
+          ? `<div class="peek-script-box">${highlightBracketTokens(fullScriptText)}</div>`
           : ""
       }
     </article>
+  `;
+}
+
+function renderChoiceRow(label, field, choices) {
+  return `
+    <div class="choice-block">
+      <p class="widget-label">${escapeHtml(label)}</p>
+      <div class="chip-row" role="group" aria-label="${escapeHtml(label)}">
+        ${choices
+          .map(
+            (choice) => `
+              <button
+                type="button"
+                class="chip"
+                data-branch-field="${escapeHtml(field)}"
+                data-branch-value="${escapeHtml(choice.value)}"
+                aria-pressed="${state.branches[field] === choice.value ? "true" : "false"}"
+              >
+                ${escapeHtml(choice.label)}
+              </button>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
   `;
 }
 
@@ -571,7 +441,7 @@ function renderQuickObjectionDrawer() {
 
   elements.quickObjectionDrawer.innerHTML = `
     <div class="quick-drawer-header">
-      <h2>Instant Objection Handler</h2>
+      <h2>Instant Objection Handler (AIOA)</h2>
       <button type="button" class="close-drawer-btn" data-close-drawer>Close (Esc)</button>
     </div>
     <div class="chip-row" role="group" aria-label="Quick objections" style="margin-bottom: 8px;">
@@ -593,153 +463,124 @@ function renderQuickObjectionDrawer() {
     ${renderScriptOrCueCard({
       peekKey: `drawer-${selected.id}`,
       label: `Objection: ${selected.label}`,
-      cueText: selected.cue,
-      askCueText: selected.askCue,
+      liveCueText: selected.liveCue,
+      liveAskText: selected.liveAsk,
       fullScriptText: selected.response,
       followUpText: selected.followUp
     })}
   `;
 }
 
-function renderDiscoveryWidget() {
-  const { deal } = state;
-
+function renderDiscoveryBranchWidget() {
   return `
-    <section class="inline-widget" aria-label="Discovery quick capture">
-      <p class="widget-label">1-Click Borrower Goal</p>
-      <div class="chip-row" role="group" aria-label="Primary borrower goal">
-        ${GOAL_CHIPS.map(
-          (goal) => `
-            <button
-              type="button"
-              class="chip"
-              data-goal-chip="${escapeHtml(goal)}"
-              aria-pressed="${deal.primaryGoal === goal ? "true" : "false"}"
-            >
-              ${escapeHtml(goal)}
-            </button>
-          `
-        ).join("")}
-      </div>
-      <div class="calc-grid">
-        <label class="calc-field">
-          Curr Balance ($)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="currentBalance"
-            placeholder="385,000"
-            value="${escapeHtml(deal.currentBalance)}"
-          />
-        </label>
-        <label class="calc-field">
-          Curr Rate (%)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="currentRate"
-            placeholder="7.125"
-            value="${escapeHtml(deal.currentRate)}"
-          />
-        </label>
-        <label class="calc-field">
-          Curr P&amp;I ($/mo)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="currentPayment"
-            placeholder="2,640"
-            value="${escapeHtml(deal.currentPayment)}"
-          />
-        </label>
-      </div>
+    <section class="inline-widget" aria-label="Step 3 VSC branch setup">
+      ${renderChoiceRow("Keep vs. Trade (Sets Step 3 Stage)", "horizon", HORIZON_CHOICES)}
+      ${renderChoiceRow("Dealership Warranty / VSC", "dealerVsc", VSC_CHOICES)}
     </section>
   `;
 }
 
-function renderCloseWidget() {
-  const { deal } = state;
-  const metrics = computeDealMetrics(deal);
-  const hasSavings = Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0;
+function renderRecapBranchWidget() {
+  const recapStep = steps.find((step) => step.id === "recap");
+  const branchKey = getVscBranchKey();
+  const branch = recapStep?.stageScripts?.[branchKey];
 
   return `
-    <section class="inline-widget" aria-label="Refi Close Calculator">
-      <p class="widget-label">Proposed Offer &amp; Break-Even Calculator</p>
-      <div class="calc-grid">
-        <label class="calc-field">
-          New Rate (%)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="proposedRate"
-            placeholder="5.875"
-            value="${escapeHtml(deal.proposedRate)}"
-          />
-        </label>
-        <label class="calc-field">
-          New Term
-          <select data-deal-field="proposedTerm">
-            ${["30 yr", "25 yr", "20 yr", "15 yr", "10 yr"]
-              .map(
-                (term) =>
-                  `<option value="${term}" ${
-                    deal.proposedTerm === term ? "selected" : ""
-                  }>${term}</option>`
-              )
-              .join("")}
-          </select>
-        </label>
-        <label class="calc-field">
-          New P&amp;I ($/mo)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="proposedPayment"
-            placeholder="2,280"
-            value="${escapeHtml(deal.proposedPayment)}"
-          />
-        </label>
+    <section class="inline-widget" aria-label="Set the stage VSC branch">
+      ${renderChoiceRow("Horizon", "horizon", HORIZON_CHOICES)}
+      ${renderChoiceRow("Dealer VSC", "dealerVsc", VSC_CHOICES)}
+      ${
+        branch
+          ? renderScriptOrCueCard({
+              peekKey: `stage-${branchKey}`,
+              label: `Set the Stage — ${branch.label}`,
+              liveCueText: branch.liveCue,
+              fullScriptText: branch.script
+            })
+          : ""
+      }
+    </section>
+  `;
+}
+
+function renderDocWalkBranchWidget() {
+  const docStep = steps.find((step) => step.id === "docwalk");
+  const notaryScript = docStep?.notaryScripts?.[state.branches.notaryMode];
+
+  return `
+    <section class="inline-widget" aria-label="DocuSign and Notary process">
+      ${renderChoiceRow("2-Email Doc & Notary Path", "notaryMode", NOTARY_CHOICES)}
+      ${
+        notaryScript
+          ? renderScriptOrCueCard({
+              peekKey: `notary-${state.branches.notaryMode}`,
+              label: `Explain Doc Process — ${notaryScript.label}`,
+              liveCueText: notaryScript.liveCue,
+              fullScriptText: notaryScript.script
+            })
+          : ""
+      }
+    </section>
+  `;
+}
+
+function renderQaBranchWidget() {
+  const qaStep = steps.find((step) => step.id === "qa");
+  const pitch = qaStep?.gapScripts?.[state.branches.gapPitchMode];
+
+  return `
+    <section class="inline-widget" aria-label="Assuming the GAP pitch">
+      ${renderChoiceRow("Assuming the GAP", "gapPitchMode", GAP_PITCH_CHOICES)}
+      ${
+        pitch
+          ? renderScriptOrCueCard({
+              peekKey: `gap-${state.branches.gapPitchMode}`,
+              label: pitch.label,
+              liveCueText: pitch.liveCue,
+              fullScriptText: pitch.script
+            })
+          : ""
+      }
+    </section>
+  `;
+}
+
+function renderAioaStrip(step) {
+  if (!step.aioa?.length) {
+    return "";
+  }
+
+  if (isLiveMode()) {
+    return `
+      <div class="aioa-compact-bar" aria-label="AIOA Framework">
+        <span><strong>A</strong>gree</span>
+        <span>→</span>
+        <span><strong>I</strong>solate</span>
+        <span>→</span>
+        <span><strong>O</strong>vercome</span>
+        <span>→</span>
+        <span><strong>A</strong>sk</span>
       </div>
-      <div class="calc-grid-2">
-        <label class="calc-field">
-          Net Cost / Credit ($)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="netCost"
-            placeholder="1,800 (or 0)"
-            value="${escapeHtml(deal.netCost)}"
-          />
-        </label>
-        <label class="calc-field">
-          Cash Out ($ optional)
-          <input
-            type="text"
-            inputmode="decimal"
-            data-deal-field="cashOut"
-            placeholder="0"
-            value="${escapeHtml(deal.cashOut)}"
-          />
-        </label>
-      </div>
-      <div id="close-calc-summary" class="calc-output-row">
-        <div class="calc-stat ${hasSavings ? "stat-positive" : ""}">
-          <span class="calc-stat-label">Monthly / Annual Savings</span>
-          <span class="calc-stat-value">
-            ${
-              hasSavings
-                ? `${formatCurrency(metrics.monthlySavings)}/mo (${formatCurrency(
-                    metrics.annualSavings
-                  )}/yr)`
-                : "Enter Curr & New Pmt"
-            }
-          </span>
-        </div>
-        <div class="calc-stat">
-          <span class="calc-stat-label">Break-Even Period</span>
-          <span class="calc-stat-value">${escapeHtml(metrics.breakEvenLabel)}</span>
-        </div>
-      </div>
+    `;
+  }
+
+  return `
+    <section class="aioa-ledger" aria-label="AIOA Framework">
+      <p class="widget-label">The AIOA Framework</p>
+      ${step.aioa
+        .map(
+          (row) => `
+            <div class="aioa-row">
+              <span class="aioa-letter">${escapeHtml(row.letter)}</span>
+              <div>
+                <strong>${escapeHtml(row.label)}</strong>
+                <p>${escapeHtml(row.purpose)}</p>
+                <p class="aioa-example">${escapeHtml(row.example)}</p>
+              </div>
+            </div>
+          `
+        )
+        .join("")}
     </section>
   `;
 }
@@ -749,16 +590,12 @@ function renderChecklist(step) {
     return "";
   }
 
-  // In Live Mode, Discovery & Close inputs already auto-track their checklists
-  if (isLiveMode() && (step.id === "discovery" || step.id === "close")) {
-    return "";
-  }
-
   const checkedItems = getCheckedItems(step.id);
 
   if (isLiveMode()) {
     return `
       <div>
+        <p class="section-sublabel">Step Check-Offs</p>
         <div class="cue-pill-row" role="group" aria-label="${escapeHtml(step.title)} quick checks">
           ${step.checklist
             .map((item, index) => {
@@ -811,12 +648,7 @@ function renderChecklist(step) {
 }
 
 function renderPrompts(step) {
-  if (!step.prompts?.length || step.id === "close") {
-    return "";
-  }
-
-  // In Live Mode, the primary question is already featured inside the Live Cue card
-  if (isLiveMode()) {
+  if (!step.prompts?.length || isLiveMode()) {
     return "";
   }
 
@@ -824,7 +656,7 @@ function renderPrompts(step) {
     <div>
       <p class="section-sublabel">Questions to Ask</p>
       <ul class="prompt-list">
-        ${step.prompts.map((prompt) => `<li>${escapeHtml(prompt)}</li>`).join("")}
+        ${step.prompts.map((prompt) => `<li>${highlightBracketTokens(prompt)}</li>`).join("")}
       </ul>
     </div>
   `;
@@ -840,6 +672,7 @@ function renderRebuttals(step) {
     step.rebuttals[0];
 
   return `
+    ${renderAioaStrip(step)}
     <div class="chip-row" role="group" aria-label="Common objections">
       ${step.rebuttals
         .map(
@@ -859,54 +692,11 @@ function renderRebuttals(step) {
     ${renderScriptOrCueCard({
       peekKey: `rebuttal-${selected.id}`,
       label: selected.label,
-      cueText: selected.cue,
-      askCueText: selected.askCue,
+      liveCueText: selected.liveCue,
+      liveAskText: selected.liveAsk,
       fullScriptText: selected.response,
       followUpText: selected.followUp
     })}
-  `;
-}
-
-function renderOptions(step) {
-  if (!step.options?.length) {
-    return "";
-  }
-
-  const selectedOption =
-    step.options.find((opt) => (opt.id || opt.title) === state.selectedPivotId) ||
-    step.options[0];
-  const live = isLiveMode();
-
-  return `
-    <div class="option-grid" role="group" aria-label="Loan structure pivots">
-      ${step.options
-        .map((option) => {
-          const optId = option.id || option.title;
-          const isSelected = optId === (selectedOption.id || selectedOption.title);
-          return `
-            <button
-              type="button"
-              class="option-card"
-              data-pivot-id="${escapeHtml(optId)}"
-              aria-pressed="${isSelected ? "true" : "false"}"
-            >
-              <h3>${escapeHtml(option.title)}</h3>
-              ${!live ? `<p>${escapeHtml(option.description)}</p>` : ""}
-            </button>
-          `;
-        })
-        .join("")}
-    </div>
-    ${
-      selectedOption?.talkTrack
-        ? renderScriptOrCueCard({
-            peekKey: `pivot-${selectedOption.id || selectedOption.title}`,
-            label: `Pivot — ${selectedOption.title}`,
-            cueText: selectedOption.cue,
-            fullScriptText: selectedOption.talkTrack
-          })
-        : ""
-    }
   `;
 }
 
@@ -920,6 +710,7 @@ function renderStepDetail() {
   const onFirstStep = isFirstStep(step);
   const onLastStep = isLastStep(step);
   const live = isLiveMode();
+  const showTopCard = Boolean(step.script) && !(live && step.id === "rebuttal");
 
   elements.stepDetail.innerHTML = `
     <div class="step-header-bar">
@@ -927,26 +718,27 @@ function renderStepDetail() {
         <span class="step-kicker">Step ${escapeHtml(step.number)}</span>
         <h2 id="step-title" class="step-title" tabindex="-1">${escapeHtml(step.title)}</h2>
       </div>
-      ${!live ? `<p class="step-subtitle">${escapeHtml(step.subtitle)}</p>` : ""}
+      <p class="step-subtitle">${escapeHtml(step.subtitle)}</p>
     </div>
-    ${!live ? `<p class="step-goal">${escapeHtml(step.goal)}</p>` : ""}
+    ${!live && step.goal ? `<p class="step-goal">${escapeHtml(step.goal)}</p>` : ""}
     ${
-      step.script
+      showTopCard
         ? renderScriptOrCueCard({
             peekKey: `step-${step.id}`,
-            label: live ? "Live Cue" : "Talk Track",
-            cueText: step.cue,
-            askCueText: step.askCue,
+            label: live ? "Live Cue" : "Full Script",
+            liveCueText: step.liveCue,
+            liveAskText: step.liveAsk,
             fullScriptText: step.script,
             idAttr: "active-talk-track"
           })
         : ""
     }
-    ${step.id === "discovery" ? renderDiscoveryWidget() : ""}
-    ${step.id === "close" ? renderCloseWidget() : ""}
+    ${step.id === "discovery" ? renderDiscoveryBranchWidget() : ""}
+    ${step.id === "recap" ? renderRecapBranchWidget() : ""}
+    ${step.id === "docwalk" ? renderDocWalkBranchWidget() : ""}
+    ${step.id === "qa" ? renderQaBranchWidget() : ""}
     ${renderPrompts(step)}
     ${renderRebuttals(step)}
-    ${renderOptions(step)}
     ${renderChecklist(step)}
     <div class="step-nav-footer">
       <button
@@ -970,37 +762,13 @@ function renderStepDetail() {
 }
 
 function renderNotes() {
-  elements.goalNote.value = state.notes.goal;
-  elements.loanNote.value = state.notes.loan;
-  elements.nextNote.value = state.notes.next;
-
+  elements.callNote.value = state.scratchpad;
   elements.notesBody.hidden = Boolean(state.notesCollapsed);
   elements.toggleNotes.setAttribute(
     "aria-expanded",
     state.notesCollapsed ? "false" : "true"
   );
   elements.toggleNotes.textContent = state.notesCollapsed ? "Expand" : "Hide";
-
-  for (const tabBtn of document.querySelectorAll("[data-note-tab]")) {
-    const key = tabBtn.dataset.noteTab;
-    const isSelected = key === state.activeNoteTab;
-    tabBtn.setAttribute("aria-selected", isSelected ? "true" : "false");
-
-    const hasContent = Boolean(state.notes[key]?.trim());
-    const dot = tabBtn.querySelector(".tab-dot");
-    if (hasContent && !dot) {
-      tabBtn.insertAdjacentHTML(
-        "beforeend",
-        '<span class="tab-dot" aria-hidden="true"></span>'
-      );
-    } else if (!hasContent && dot) {
-      dot.remove();
-    }
-  }
-
-  for (const pane of document.querySelectorAll("[data-note-pane]")) {
-    pane.hidden = pane.dataset.notePane !== state.activeNoteTab;
-  }
 }
 
 function announceStep() {
@@ -1018,7 +786,6 @@ function focusStepTitle() {
 
 function renderApp({ announce = false, focusStep = false } = {}) {
   renderModeSwitch();
-  renderLiveMetricsStrip();
   renderStepList();
   renderQuickObjectionDrawer();
   renderStepDetail();
@@ -1063,16 +830,7 @@ async function setActiveStep(stepId) {
     return;
   }
 
-  const autoTab =
-    stepId === "discovery"
-      ? "goal"
-      : stepId === "close"
-        ? "loan"
-        : stepId === "rebuttal" || stepId === "pivot"
-          ? "next"
-          : state.activeNoteTab;
-
-  await flushState({ activeStepId: stepId, activeNoteTab: autoTab });
+  await flushState({ activeStepId: stepId });
   renderApp({ announce: true, focusStep: true });
 }
 
@@ -1110,215 +868,58 @@ async function toggleChecklistIndex(step, index, forceChecked) {
   });
 
   renderStepList();
-  if (isLiveMode()) {
-    renderStepDetail();
+  renderStepDetail();
+}
+
+async function selectBranchChoice(field, value) {
+  if (!field || !value) {
+    return;
   }
+
+  await flushState({
+    branches: {
+      ...state.branches,
+      [field]: value
+    }
+  });
+
+  renderStepDetail();
 }
 
 function rememberNotes() {
   state = {
     ...state,
-    notes: {
-      goal: elements.goalNote.value,
-      loan: elements.loanNote.value,
-      next: elements.nextNote.value
-    }
+    scratchpad: elements.callNote.value
   };
-}
-
-function refreshActiveTalkTrackInPlace() {
-  const step = getActiveStep();
-  const talkTrackEl = document.getElementById("active-talk-track");
-  if (!step || !talkTrackEl) {
-    return;
-  }
-
-  if (isLiveMode() && step.cue) {
-    talkTrackEl.innerHTML = interpolateTalkTrack(step.cue, { short: true });
-  } else if (step.script) {
-    talkTrackEl.innerHTML = interpolateTalkTrack(step.script);
-  }
 }
 
 function updateNotes() {
   rememberNotes();
-  renderLiveMetricsStrip();
-  refreshActiveTalkTrackInPlace();
-  renderNotes();
   schedulePersist();
-}
-
-function updateCloseSummaryInPlace() {
-  const summaryEl = document.getElementById("close-calc-summary");
-  if (!summaryEl) {
-    return;
-  }
-  const metrics = computeDealMetrics(state.deal);
-  const hasSavings = Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0;
-  summaryEl.innerHTML = `
-    <div class="calc-stat ${hasSavings ? "stat-positive" : ""}">
-      <span class="calc-stat-label">Monthly / Annual Savings</span>
-      <span class="calc-stat-value">
-        ${
-          hasSavings
-            ? `${formatCurrency(metrics.monthlySavings)}/mo (${formatCurrency(
-                metrics.annualSavings
-              )}/yr)`
-            : "Enter Curr & New Pmt"
-        }
-      </span>
-    </div>
-    <div class="calc-stat">
-      <span class="calc-stat-label">Break-Even Period</span>
-      <span class="calc-stat-value">${escapeHtml(metrics.breakEvenLabel)}</span>
-    </div>
-  `;
-}
-
-function handleDealFieldInput(inputEl) {
-  const field = inputEl.dataset.dealField;
-  if (!field) {
-    return;
-  }
-
-  state = {
-    ...state,
-    deal: {
-      ...state.deal,
-      [field]: inputEl.value
-    }
-  };
-
-  if (field === "currentBalance" && inputEl.value.trim()) {
-    markChecklistItem("discovery", "current balance");
-  } else if (field === "currentRate" && inputEl.value.trim()) {
-    markChecklistItem("discovery", "current rate");
-  } else if (field === "currentPayment" && inputEl.value.trim()) {
-    markChecklistItem("discovery", "current payment");
-  } else if (field === "proposedPayment" && inputEl.value.trim()) {
-    markChecklistItem("close", "proposed payment");
-  } else if (field === "proposedRate" && inputEl.value.trim()) {
-    markChecklistItem("close", "rate and term");
-  } else if (field === "netCost" && inputEl.value.trim()) {
-    markChecklistItem("close", "closing costs");
-    markChecklistItem("close", "break-even");
-  }
-
-  renderLiveMetricsStrip();
-  renderStepList();
-  updateCloseSummaryInPlace();
-  refreshActiveTalkTrackInPlace();
-
-  for (const pill of elements.stepDetail.querySelectorAll("[data-check-pill-index]")) {
-    const step = getActiveStep();
-    const idx = Number(pill.dataset.checkPillIndex);
-    const item = step?.checklist?.[idx];
-    const isChecked = item ? getCheckedItems(step.id).includes(item) : false;
-    pill.setAttribute("aria-pressed", isChecked ? "true" : "false");
-    const icon = pill.querySelector(".check-pill-icon");
-    if (icon) {
-      icon.textContent = isChecked ? "[x]" : "[ ]";
-    }
-  }
-
-  schedulePersist();
-}
-
-async function selectGoalChip(goalValue) {
-  const nextGoal = state.deal.primaryGoal === goalValue ? "" : goalValue;
-  state = {
-    ...state,
-    deal: {
-      ...state.deal,
-      primaryGoal: nextGoal
-    }
-  };
-
-  if (nextGoal) {
-    markChecklistItem("discovery", "primary goal");
-  }
-
-  await flushState();
-  renderApp();
-}
-
-function openChecklistLines() {
-  const currentIndex = Math.max(
-    steps.findIndex((step) => step.id === state.activeStepId),
-    0
-  );
-
-  return steps.flatMap((step, index) => {
-    if (!step.checklist?.length) {
-      return [];
-    }
-
-    const checked = new Set(getCheckedItems(step.id));
-    const reached = index <= currentIndex || checked.size > 0;
-    if (!reached) {
-      return [];
-    }
-
-    const open = step.checklist.filter((item) => !checked.has(item));
-    if (!open.length) {
-      return [];
-    }
-
-    return [`${step.number}. ${step.title}`, ...open.map((item) => `- ${item}`)];
-  });
 }
 
 function buildCrmNote() {
-  const step = getActiveStep();
-  const { deal, notes } = state;
-  const metrics = computeDealMetrics(deal);
-
-  const goalSummary =
-    [deal.primaryGoal, notes.goal].filter(Boolean).join(" — ") || "Not captured";
-
-  const currentSnap = [
-    deal.currentBalance ? `Bal: $${deal.currentBalance}` : "",
-    deal.currentRate ? `Rate: ${deal.currentRate}%` : "",
-    deal.currentPayment ? `Pmt: $${deal.currentPayment}/mo` : ""
-  ]
-    .filter(Boolean)
-    .join(" | ");
-
-  const proposedSnap = [
-    deal.proposedRate ? `New Rate: ${deal.proposedRate}% (${deal.proposedTerm})` : "",
-    deal.proposedPayment ? `New Pmt: $${deal.proposedPayment}/mo` : "",
-    Number.isFinite(metrics.monthlySavings) && metrics.monthlySavings > 0
-      ? `Savings: ${formatCurrency(metrics.monthlySavings)}/mo (${formatCurrency(
-          metrics.annualSavings
-        )}/yr)`
-      : "",
-    metrics.breakEvenLabel !== "—" ? `Break-Even: ${metrics.breakEvenLabel}` : "",
-    deal.cashOut ? `Cash Out: $${deal.cashOut}` : ""
-  ]
-    .filter(Boolean)
-    .join(" | ");
-
-  const loanDetailsCombined =
-    [currentSnap, proposedSnap, notes.loan].filter(Boolean).join(" // ") ||
-    "Not captured";
+  const { branches, scratchpad } = state;
+  const horizonLabel =
+    HORIZON_CHOICES.find((c) => c.value === branches.horizon)?.label || "";
+  const vscLabel =
+    VSC_CHOICES.find((c) => c.value === branches.dealerVsc)?.label || "";
+  const notaryLabel =
+    NOTARY_CHOICES.find((c) => c.value === branches.notaryMode)?.label || "";
+  const gapLabel =
+    GAP_PITCH_CHOICES.find((c) => c.value === branches.gapPitchMode)?.label || "";
 
   const lines = [
-    "REFI CALL NOTES",
-    `Current step: ${step.number}. ${step.title}`,
+    "GRAVITY LENDING CALL NOTES",
+    `VSC Setup: ${[horizonLabel, vscLabel].filter(Boolean).join(" · ")}`,
+    `Doc / Notary Path: ${notaryLabel} · ${gapLabel}`,
     "",
-    `Borrower goal: ${goalSummary}`,
-    `Loan details: ${loanDetailsCombined}`,
-    `Objections / next step: ${notes.next || "Not captured"}`
+    scratchpad.trim() || "No scratchpad notes entered."
   ];
 
   const selected = findSelectedRebuttal();
   if (selected) {
-    lines.push("", `Selected objection: ${selected.label}`);
-  }
-
-  const openItems = openChecklistLines();
-  if (openItems.length) {
-    lines.push("", "Checklist still open:", ...openItems);
+    lines.push("", `Objection handled: ${selected.label}`);
   }
 
   return lines.join("\n");
@@ -1341,9 +942,9 @@ async function copyNotes() {
 
   try {
     await navigator.clipboard.writeText(buildCrmNote());
-    setCopyStatus("Copied to clipboard!");
+    setCopyStatus("Copied!");
   } catch {
-    setCopyStatus("Could not copy notes.", "error");
+    setCopyStatus("Could not copy.", "error");
   }
 }
 
@@ -1386,11 +987,6 @@ async function selectRebuttal(rebuttalId) {
   renderStepDetail();
 }
 
-async function selectPivot(pivotId) {
-  await flushState({ selectedPivotId: pivotId });
-  renderStepDetail();
-}
-
 function toggleQuickObjectionDrawer() {
   quickObjectionOpen = !quickObjectionOpen;
   renderQuickObjectionDrawer();
@@ -1429,24 +1025,11 @@ function bindEvents() {
     flushState({ notesCollapsed: !state.notesCollapsed }).then(() => renderNotes());
   });
 
-  document.querySelector(".notes-tabs")?.addEventListener("click", (event) => {
-    const tabBtn = event.target.closest("[data-note-tab]");
-    if (!tabBtn) {
-      return;
-    }
-    flushState({
-      activeNoteTab: tabBtn.dataset.noteTab,
-      notesCollapsed: false
-    }).then(() => renderNotes());
+  elements.callNote.addEventListener("input", updateNotes);
+  elements.callNote.addEventListener("blur", () => {
+    rememberNotes();
+    flushState();
   });
-
-  for (const textarea of [elements.goalNote, elements.loanNote, elements.nextNote]) {
-    textarea.addEventListener("input", updateNotes);
-    textarea.addEventListener("blur", () => {
-      rememberNotes();
-      flushState();
-    });
-  }
 
   elements.stepList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-step-id]");
@@ -1473,10 +1056,13 @@ function bindEvents() {
       return;
     }
 
-    const goalChip = event.target.closest("[data-goal-chip]");
-    if (goalChip) {
+    const branchBtn = event.target.closest("[data-branch-field]");
+    if (branchBtn) {
       disarmClearCall();
-      selectGoalChip(goalChip.dataset.goalChip);
+      selectBranchChoice(
+        branchBtn.dataset.branchField,
+        branchBtn.dataset.branchValue
+      );
       return;
     }
 
@@ -1484,13 +1070,6 @@ function bindEvents() {
     if (rebuttalButton) {
       disarmClearCall();
       selectRebuttal(rebuttalButton.dataset.rebuttalId);
-      return;
-    }
-
-    const pivotButton = event.target.closest("[data-pivot-id]");
-    if (pivotButton) {
-      disarmClearCall();
-      selectPivot(pivotButton.dataset.pivotId);
       return;
     }
 
@@ -1506,20 +1085,7 @@ function bindEvents() {
     }
   });
 
-  elements.stepDetail.addEventListener("input", (event) => {
-    if (event.target.matches("[data-deal-field]")) {
-      handleDealFieldInput(event.target);
-    }
-  });
-
   elements.stepDetail.addEventListener("change", (event) => {
-    if (event.target.matches("[data-deal-field]")) {
-      handleDealFieldInput(event.target);
-      flushState();
-      renderStepDetail();
-      return;
-    }
-
     if (event.target.matches("[data-check-index]")) {
       toggleChecklistIndex(
         getActiveStep(),
@@ -1598,23 +1164,20 @@ function bindEvents() {
 
 async function init() {
   steps = await loadSteps();
-  const storedState = stripLegacyState(await getStoredState());
-  const activeStepId = steps.some((step) => step.id === storedState.activeStepId)
-    ? storedState.activeStepId
+  const normalized = normalizeStoredState(await getStoredState());
+  const activeStepId = steps.some((step) => step.id === normalized.activeStepId)
+    ? normalized.activeStepId
     : steps[0]?.id || "";
 
   state = {
     ...structuredClone(defaultState),
-    ...storedState,
-    notes: normalizeNotes(storedState.notes),
-    deal: normalizeDeal(storedState.deal),
-    checkedItems: normalizeCheckedItems(storedState.checkedItems),
+    ...normalized,
     activeStepId
   };
 
   bindEvents();
   renderApp({ announce: true });
-  removeLegacyTimerKeys().catch(() => {});
+  removeLegacyKeys().catch(() => {});
   persistState();
 }
 
