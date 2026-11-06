@@ -1,6 +1,6 @@
 # Refi Companion
 
-Refi Companion is a Chrome Manifest V3 side-panel **conversation companion** for Gravity Lending auto refinance calls. Designed to sit beside your open application portal, it requires **zero loan-number data entry** and focuses 100% on call flow, script branching, and quick scratchpad notes.
+Refi Companion is a Chrome Manifest V3 side-panel **conversation companion** for Gravity Lending auto refinance calls. Designed to sit beside your open application portal, it requires **zero loan-number data entry** and focuses 100% on call flow, script branching, and an on-demand resizable legal-pad scratchpad.
 
 - No duplicate portal data entry
 - No call recording or CRM page scraping
@@ -25,9 +25,16 @@ Short titles appear on the 1–7 step rail; Gravity Lending section titles appea
 - **Inline `"Peek script"` Toggle:** In Live Mode, click **Peek script** on any card to temporarily reveal the full word-for-word Gravity Lending script without leaving Live Mode.
 - **Practice Mode (Study & Roleplay):** Displays the full verbatim Gravity Lending paragraphs, step goals, complete qualification/discovery question lists, the 4-row AIOA framework table, and full checklists.
 
+## Bottom Expandable & Resizable Scratchpad (`Alt+N`)
+
+- **Docked `"Scratchpad"` Button at the Bottom:** When closed, a compact **`Scratchpad`** button sits at the bottom-left of the panel (with a blue ink dot whenever notes are saved).
+- **Expands in Place into the Scratchpad Title:** Clicking **`Scratchpad`** expands the drawer upward so the button seamlessly becomes the **`Scratchpad`** header title alongside `Copy`, `Clear Call`, and `Close`.
+- **Drag-to-Resize:** Drag the top grip bar of the scratchpad up or down to make it as tall or compact as you like.
+
 ## Keyboard Shortcuts
 
 - `Alt + M`: Switch between **Live** and **Practice** mode
-- `Alt + →` / `Alt + ←`: Next / Previous script step
+- `Alt + N`: Open or close the **Scratchpad**
 - `Alt + O`: Toggle Instant Objection Drawer (AIOA)
+- `Alt + →` / `Alt + ←`: Next / Previous script step
 - `Cmd/Ctrl + Shift + C`: Copy scratchpad & call branch notes to clipboard

@@ -35,7 +35,7 @@
               </button>
             </div>
           </div>
-          <div class="controls" role="group" aria-label="Call controls">
+          <div class="controls" role="group" aria-label="Call tools">
             <button
               id="quick-objection-toggle"
               class="ghost-button"
@@ -45,22 +45,6 @@
               title="Quick Objections (Alt+O)"
             >
               Objections
-            </button>
-            <button
-              id="new-call"
-              class="secondary-button"
-              type="button"
-              title="Reset call checks & scratchpad"
-            >
-              New
-            </button>
-            <button
-              id="copy-notes"
-              class="primary-button"
-              type="button"
-              title="Copy conversation notes (Cmd/Ctrl+Shift+C)"
-            >
-              Copy Notes
             </button>
           </div>
         </div>
@@ -79,30 +63,89 @@
 
       <section id="step-detail" class="step-detail"></section>
 
-      <section id="notes-dock" class="notes-panel" aria-labelledby="notes-title">
-        <div class="notes-header">
-          <div class="notes-title-group">
-            <h2 id="notes-title">Call Scratchpad</h2>
-            <span id="copy-status" class="copy-status" role="status"></span>
-          </div>
-          <button
-            id="toggle-notes"
-            class="notes-collapse-btn"
-            type="button"
-            aria-expanded="true"
-            title="Collapse or expand scratchpad"
-          >
-            Hide
-          </button>
+      <section
+        id="notes-dock"
+        class="notes-panel"
+        data-open="false"
+        aria-label="Scratchpad"
+      >
+        <div
+          id="pad-resize-handle"
+          class="pad-resize-handle"
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Drag to resize scratchpad"
+          tabindex="0"
+          hidden
+          title="Drag up or down to resize scratchpad"
+        >
+          <span class="pad-grip-lines" aria-hidden="true"></span>
         </div>
 
-        <div id="notes-body" class="notes-body">
+        <div class="notes-header">
+          <div class="notes-title-group">
+            <button
+              id="toggle-pad-btn"
+              class="scratchpad-title-btn"
+              type="button"
+              aria-expanded="false"
+              aria-controls="notes-body"
+              title="Open or close Scratchpad (Alt+N)"
+            >
+              <svg
+                class="pad-icon"
+                viewBox="0 0 16 16"
+                width="13"
+                height="13"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 1.5h10a.5.5 0 0 1 .5.5v12a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V2a.5.5 0 0 1 .5-.5Zm1 3h8M4 7.5h8M4 10.5h5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span>Scratchpad</span>
+              <span id="pad-ink-dot" class="pad-ink-dot" hidden aria-hidden="true"></span>
+            </button>
+            <span id="copy-status" class="copy-status" role="status"></span>
+          </div>
+          <div id="pad-actions" class="pad-actions" hidden>
+            <button
+              id="copy-notes"
+              class="pad-action-btn pad-action-primary"
+              type="button"
+              title="Copy scratchpad & call tags (Cmd/Ctrl+Shift+C)"
+            >
+              Copy
+            </button>
+            <button
+              id="new-call"
+              class="pad-action-btn"
+              type="button"
+              title="Clear scratchpad & reset call check-offs"
+            >
+              Clear Call
+            </button>
+            <button
+              id="close-pad-btn"
+              class="pad-action-btn"
+              type="button"
+              title="Collapse scratchpad (Alt+N)"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        <div id="notes-body" class="notes-body" hidden>
           <label class="note-pane">
             <span class="visually-hidden">Call scratchpad notes</span>
             <textarea
               id="call-note"
-              rows="3"
-              placeholder="Goal, payment comfort, keep vs trade, warranty, objections / next step..."
+              placeholder="Jot down goal, payment comfort, keep vs trade, warranty, objections / next step..."
             ></textarea>
           </label>
         </div>
